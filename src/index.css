@@ -1,0 +1,126 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: #f8fafc;
+    color: #0f172a;
+  }
+  html.dark body {
+    background-color: #020617;
+    color: #f8fafc;
+  }
+}
+
+/* Global Text Selection Styling */
+::selection {
+  background-color: #059669 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+::-moz-selection {
+  background-color: #059669 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+
+/* Dark Mode Selection: Emerald pekat dan teks putih solid dengan reset text-fill-color */
+html.dark ::selection,
+html.dark *::selection,
+.dark ::selection,
+.dark *::selection {
+  background-color: #065f46 !important; /* Emerald 800 */
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: none !important;
+}
+
+html.dark ::-moz-selection,
+html.dark *::-moz-selection,
+.dark ::-moz-selection,
+.dark *::-moz-selection {
+  background-color: #065f46 !important;
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+  text-shadow: none !important;
+}
+
+/* Kontras Input, Textarea, Select pada Mode Gelap (Dark Mode) saat Input / Edit Data */
+html.dark input:not([type="checkbox"]):not([type="radio"]),
+html.dark textarea,
+html.dark select,
+.dark input:not([type="checkbox"]):not([type="radio"]),
+.dark textarea,
+.dark select {
+  color: #0f172a !important; /* Warna Dark Slate tegas agar kontras tajam di atas elemen input putih */
+  background-color: #ffffff !important; /* Kotak input berlatar putih bersih */
+  border-color: #cbd5e1 !important;
+}
+
+html.dark input:not([type="checkbox"]):not([type="radio"]):focus,
+html.dark textarea:focus,
+html.dark select:focus,
+.dark input:not([type="checkbox"]):not([type="radio"]):focus,
+.dark textarea:focus,
+.dark select:focus {
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  border-color: #059669 !important;
+  box-shadow: 0 0 0 2px rgba(5, 150, 105, 0.2) !important;
+  outline: none !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder,
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+.font-cinzel {
+  font-family: 'Cinzel', serif;
+}
+
+@page {
+  size: 215mm 330mm; /* Standar Kertas F4 / Folio Sekolah Indonesia agar halaman tidak terpotong */
+  margin: 0.5in;
+}
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt;
+  }
+
+  header, aside, button, nav, .print\:hidden {
+    display: none !important;
+  }
+
+  .print\:p-0 {
+    padding: 0 !important;
+  }
+
+  .print\:break-after-page {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  table {
+    page-break-inside: avoid;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "name": "E-Rapor SD AJ - Kurikulum Merdeka",
+  "description": "Sistem Informasi Rapor Digital Kurikulum Merdeka SD IAS Al-Jannah: penilaian CP/TP, kokurikuler P5, kehadiran, leger, cetak rapor PDF, dan manajemen akademik.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
