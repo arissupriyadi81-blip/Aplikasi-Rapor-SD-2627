@@ -198,9 +198,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!saved) return INITIAL_SCHOOL_PROFILE;
     try {
       const parsed = JSON.parse(saved);
+      const logoUrl = (!parsed.logoUrl || parsed.logoUrl.includes('unsplash.com'))
+        ? '/logo-aljannah-emblem.png'
+        : parsed.logoUrl;
       return {
         ...INITIAL_SCHOOL_PROFILE,
         ...parsed,
+        logoUrl,
         reportDateSem1: parsed.reportDateSem1 || '2026-12-19',
         reportDateSem2: parsed.reportDateSem2 || '2027-06-25',
       };

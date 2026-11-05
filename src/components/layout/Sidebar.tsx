@@ -149,8 +149,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Mobile Header in Drawer */}
         <div className="flex h-16 items-center justify-between border-b border-slate-200 px-5 dark:border-slate-800 lg:hidden">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white font-bold">
-              AJ
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white p-1 border border-slate-200 dark:border-slate-700 dark:bg-slate-800">
+              <img src="/logo-aljannah-emblem.png" alt="Logo SD IAS Al-Jannah" className="h-full w-full object-contain" />
             </div>
             <span className="font-bold text-slate-800 dark:text-white text-sm">
               E-Rapor SD AJ

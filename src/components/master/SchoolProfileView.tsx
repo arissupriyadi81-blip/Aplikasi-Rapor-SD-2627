@@ -5,7 +5,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext.tsx';
-import { Building2, Save, CheckCircle2, Calendar, MapPin, Phone, Mail, Globe, UserCheck } from 'lucide-react';
+import { Building2, Save, CheckCircle2, Calendar, MapPin, Phone, Mail, Globe, UserCheck, Image as ImageIcon } from 'lucide-react';
 
 export const SchoolProfileView: React.FC = () => {
   const { schoolProfile, updateSchoolProfile, currentUser } = useApp();
@@ -232,8 +232,50 @@ export const SchoolProfileView: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Kepala Sekolah & Titi Mangsa */}
+        {/* Right Column: Logo & Kepala Sekolah & Titi Mangsa */}
         <div className="space-y-6">
+          {/* Logo Resmi Satuan Pendidikan */}
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-4">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-white border-b border-slate-100 pb-2 dark:border-slate-800 flex items-center gap-2">
+              <ImageIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              Logo Resmi Satuan Pendidikan
+            </h3>
+
+            <div className="flex items-center gap-4">
+              <div className="h-20 w-20 shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-white p-2 flex items-center justify-center shadow-sm">
+                <img
+                  src={formData.logoUrl || '/logo-aljannah-emblem.png'}
+                  alt="Logo Sekolah"
+                  className="h-full w-full object-contain"
+                />
+              </div>
+              <div className="flex-1 space-y-1">
+                <p className="text-xs font-bold text-slate-800 dark:text-white">SD IAS Al-Jannah</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                  Logo resmi otomatis disematkan pada sampul rapor, kop lembar dinas, dan identitas aplikasi.
+                </p>
+                {canEdit && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, logoUrl: '/logo-aljannah-emblem.png' })}
+                      className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 underline"
+                    >
+                      Logo Emblem
+                    </button>
+                    <span className="text-slate-300 dark:text-slate-600">•</span>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, logoUrl: '/logo-aljannah.png' })}
+                      className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 underline"
+                    >
+                      Logo Lengkap
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900 space-y-4">
             <h3 className="text-sm font-bold text-slate-800 dark:text-white border-b border-slate-100 pb-2 dark:border-slate-800">
               Penandatangan Rapor

@@ -163,7 +163,10 @@ export const getStandaloneReportCss = (paperCssSize: string = '215mm 330mm'): st
   .gap-4 { gap: 1rem !important; }
   .gap-6 { gap: 1.5rem !important; }
   .gap-x-6 { column-gap: 1.5rem !important; }
+  .gap-x-8 { column-gap: 2rem !important; }
   .gap-y-1 { row-gap: 0.25rem !important; }
+  .gap-y-1\\.5 { row-gap: 0.375rem !important; }
+  .gap-y-2 { row-gap: 0.5rem !important; }
 
   /* Spacing */
   .space-y-1 > * + * { margin-top: 0.25rem !important; }
@@ -237,6 +240,8 @@ export const getStandaloneReportCss = (paperCssSize: string = '215mm 330mm'): st
   .tracking-wider { letter-spacing: 0.05em !important; }
   .tracking-widest { letter-spacing: 0.1em !important; }
   .leading-relaxed { line-height: 1.625 !important; }
+  .leading-snug { line-height: 1.375 !important; }
+  .break-words { overflow-wrap: break-word !important; word-break: break-word !important; }
 
   .text-\\[10px\\] { font-size: 10px !important; }
   .text-\\[11px\\] { font-size: 11px !important; }

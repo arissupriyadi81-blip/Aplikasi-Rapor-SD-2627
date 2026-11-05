@@ -47,8 +47,12 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onOpenDbModal }
         </button>
 
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white font-bold shadow-md shadow-emerald-600/20">
-            <span className="text-base tracking-wider font-cinzel">AJ</span>
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white p-1 shadow-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800">
+            <img
+              src={schoolProfile.logoUrl || '/logo-aljannah-emblem.png'}
+              alt="Logo SD IAS Al-Jannah"
+              className="h-full w-full object-contain"
+            />
           </div>
           <div className="hidden sm:block">
             <div className="flex items-center gap-2">

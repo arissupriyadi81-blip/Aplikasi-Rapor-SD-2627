@@ -484,8 +484,12 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({ isOpen, onCl
                     <div data-report-page="true" className={`bg-white text-slate-900 p-12 sm:p-16 shadow-lg rounded-xl print:shadow-none print:rounded-none print:p-0 ${currentPaper.minHeightClass} flex flex-col justify-between border border-slate-300 print:border-none print:break-after-page`}>
                       {/* Top Header Cover */}
                       <div className="text-center space-y-4">
-                        <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-800 text-white font-bold shadow-md print:border print:border-slate-800">
-                          <span className="text-3xl tracking-widest font-cinzel">AJ</span>
+                        <div className="mx-auto flex h-28 w-28 items-center justify-center p-2 rounded-2xl bg-white shadow-sm border border-slate-200 print:border-none print:shadow-none">
+                          <img
+                            src={schoolProfile.logoUrl || '/logo-aljannah-emblem.png'}
+                            alt="Logo Resmi SD IAS Al-Jannah"
+                            className="h-full w-full object-contain"
+                          />
                         </div>
                         <div>
                           <h1 className="text-xl sm:text-2xl font-black uppercase tracking-wider text-slate-900 font-cinzel">
@@ -746,47 +750,86 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({ isOpen, onCl
                       
                       {/* Dinas Header & Identity Grid */}
                       <div className="border-b-2 border-slate-900 pb-3">
-                        <div className="text-center mb-3">
-                          <h2 className="text-base font-extrabold uppercase tracking-wide">
-                            LAPORAN HASIL BELAJAR (RAPOR)
-                          </h2>
-                          <p className="text-xs font-semibold uppercase text-slate-600">
-                            SEKOLAH DASAR IAS AL-JANNAH • TAHUN PELAJARAN {activeAcademicYear.yearName}
-                          </p>
+                        <div className="flex items-center justify-between gap-4 mb-3">
+                          <div className="w-14 h-14 shrink-0 flex items-center justify-center p-0.5">
+                            <img
+                              src={schoolProfile.logoUrl || '/logo-aljannah-emblem.png'}
+                              alt="Logo SD IAS Al-Jannah"
+                              className="h-full w-full object-contain"
+                            />
+                          </div>
+                          <div className="text-center flex-1">
+                            <h2 className="text-base font-extrabold uppercase tracking-wide">
+                              LAPORAN HASIL BELAJAR (RAPOR)
+                            </h2>
+                            <p className="text-xs font-semibold uppercase text-slate-600">
+                              SEKOLAH DASAR IAS AL-JANNAH • TAHUN PELAJARAN {activeAcademicYear.yearName}
+                            </p>
+                          </div>
+                          <div className="w-14 shrink-0 hidden sm:block" />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-xs">
-                          <div className="flex">
-                            <span className="w-28 text-slate-600">Nama Siswa</span>
-                            <span className="font-bold">: {student.fullName}</span>
+                        <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs">
+                          {/* Baris 1: Nama Siswa & Kelas */}
+                          <div className="flex items-start">
+                            <span className="w-28 shrink-0 text-slate-600 font-medium">Nama Siswa</span>
+                            <span className="w-4 shrink-0 font-bold text-slate-900">:</span>
+                            <span className="flex-1 font-bold text-slate-900 break-words">{student.fullName}</span>
                           </div>
-                          <div className="flex">
-                            <span className="w-28 text-slate-600">Kelas</span>
-                            <span className="font-bold">: {currentClass?.className}</span>
+                          <div className="flex items-start">
+                            <span className="w-28 shrink-0 text-slate-600 font-medium">Kelas</span>
+                            <span className="w-4 shrink-0 font-bold text-slate-900">:</span>
+                            <span className="flex-1 font-bold text-slate-900">{currentClass?.className}</span>
                           </div>
-                          <div className="flex">
-                            <span className="w-28 text-slate-600">NIS / NISN</span>
-                            <span className="font-mono">: {student.nis} / {student.nisn}</span>
+
+                          {/* Baris 2: NIS/NISN & Fase */}
+                          <div className="flex items-start">
+                            <span className="w-28 shrink-0 text-slate-600 font-medium">NIS / NISN</span>
+                            <span className="w-4 shrink-0 font-bold text-slate-900">:</span>
+                            <span className="flex-1 font-mono font-semibold text-slate-900">{student.nis} / {student.nisn}</span>
                           </div>
-                          <div className="flex">
-                            <span className="w-28 text-slate-600">Fase</span>
-                            <span className="font-bold">: Fase {currentClass?.phase}</span>
+                          <div className="flex items-start">
+                            <span className="w-28 shrink-0 text-slate-600 font-medium">Fase</span>
+                            <span className="w-4 shrink-0 font-bold text-slate-900">:</span>
+                            <span className="flex-1 font-bold text-slate-900">Fase {currentClass?.phase}</span>
                           </div>
-                          <div className="flex">
-                            <span className="w-28 text-slate-600">Nama Sekolah</span>
-                            <span>: {schoolProfile.schoolName}</span>
+
+                          {/* Baris 3: Nama Sekolah & Semester */}
+                          <div className="flex items-start">
+                            <span className="w-28 shrink-0 text-slate-600 font-medium">Nama Sekolah</span>
+                            <span className="w-4 shrink-0 font-bold text-slate-900">:</span>
+                            <span className="flex-1 font-semibold text-slate-900 leading-snug break-words">
+                              {schoolProfile.schoolName}
+                            </span>
                           </div>
-                          <div className="flex">
-                            <span className="w-28 text-slate-600">Semester</span>
-                            <span>: {activeSemester.semesterName}</span>
+                          <div className="flex items-start">
+                            <span className="w-28 shrink-0 text-slate-600 font-medium">Semester</span>
+                            <span className="w-4 shrink-0 font-bold text-slate-900">:</span>
+                            <span className="flex-1 font-medium text-slate-900">{activeSemester.semesterName}</span>
                           </div>
-                          <div className="flex">
-                            <span className="w-28 text-slate-600">Alamat Sekolah</span>
-                            <span className="truncate">: {schoolProfile.address}</span>
+
+                          {/* Baris 4: Alamat Sekolah & Tahun Ajaran */}
+                          <div className="flex items-start">
+                            <span className="w-28 shrink-0 text-slate-600 font-medium">Alamat Sekolah</span>
+                            <span className="w-4 shrink-0 font-bold text-slate-900">:</span>
+                            <span className="flex-1 text-slate-900 leading-snug break-words">
+                              {(() => {
+                                if (!schoolProfile.address) return '-';
+                                const parts = [schoolProfile.address];
+                                if (schoolProfile.district && !schoolProfile.address.toLowerCase().includes(schoolProfile.district.toLowerCase())) {
+                                  parts.push(schoolProfile.district);
+                                }
+                                if (schoolProfile.regency && !schoolProfile.address.toLowerCase().includes(schoolProfile.regency.toLowerCase())) {
+                                  parts.push(schoolProfile.regency);
+                                }
+                                return parts.join(', ');
+                              })()}
+                            </span>
                           </div>
-                          <div className="flex">
-                            <span className="w-28 text-slate-600">Tahun Ajaran</span>
-                            <span className="font-semibold">: {activeAcademicYear.yearName}</span>
+                          <div className="flex items-start">
+                            <span className="w-28 shrink-0 text-slate-600 font-medium">Tahun Ajaran</span>
+                            <span className="w-4 shrink-0 font-bold text-slate-900">:</span>
+                            <span className="flex-1 font-semibold text-slate-900">{activeAcademicYear.yearName}</span>
                           </div>
                         </div>
                       </div>

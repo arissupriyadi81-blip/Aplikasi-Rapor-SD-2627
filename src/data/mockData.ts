@@ -45,7 +45,7 @@ export const INITIAL_SCHOOL_PROFILE: SchoolProfile = {
   phone: '(021) 8774-1234',
   email: 'info@sekolah-aljannah.sch.id',
   website: 'https://sekolah-aljannah.sch.id',
-  logoUrl: 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?auto=format&fit=crop&w=240&q=80',
+  logoUrl: '/logo-aljannah-emblem.png',
   headmasterName: 'Aris Supriyadi, S.Pd., M.M.',
   headmasterNip: '198105152005011004',
   reportPlace: 'Jakarta Timur',
