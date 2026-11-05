@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext.tsx';
 import { formatIndonesianDate, KOKURIKULER_GRADES } from '../../utils/rules.ts';
 import { KokurikulerGrade } from '../../types/index.ts';
+import { getStandaloneReportCss } from '../../utils/printReportStyles.ts';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import {
@@ -102,6 +103,24 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({ isOpen, onCl
 
   const currentPaper = PAPER_CONFIG[paperSize];
 
+  // Helper untuk mengekstrak seluruh CSS rules aktif agar tab cetak & html2canvas 100% styled di production (seperti Vercel)
+  const getActiveInlinedCss = (): string => {
+    let inlined = '';
+    try {
+      for (const sheet of Array.from(document.styleSheets)) {
+        try {
+          const rules = Array.from(sheet.cssRules || []);
+          inlined += rules.map(r => r.cssText).join('\n') + '\n';
+        } catch {
+          // Abaikan jika ada cross-origin style restriction
+        }
+      }
+    } catch {
+      // Abaikan jika tidak diizinkan
+    }
+    return inlined;
+  };
+
   // Fungsi 1: Unduh langsung dokumen sebagai berkas PDF (.pdf) dengan kertas F4 / Legal
   const handleDownloadPdf = async () => {
     try {
@@ -123,6 +142,9 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({ isOpen, onCl
         compress: true,
       });
 
+      const standaloneCss = getStandaloneReportCss(currentPaper.cssSize);
+      const activeInlinedCss = getActiveInlinedCss();
+
       for (let i = 0; i < pagesToProcess.length; i++) {
         const pageEl = pagesToProcess[i];
         setPdfProgress(`Memproses halaman ${i + 1} dari ${pagesToProcess.length} (${currentPaper.label})...`);
@@ -130,9 +152,30 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({ isOpen, onCl
         const canvas = await html2canvas(pageEl, {
           scale: 1.8,
           useCORS: true,
+          allowTaint: true,
           logging: false,
           backgroundColor: '#ffffff',
           windowWidth: 1200,
+          onclone: (clonedDoc, clonedEl) => {
+            // Hilangkan dark mode di canvas agar hasil cetak selalu berlatar belakang putih bersih
+            clonedDoc.documentElement.classList.remove('dark');
+            clonedDoc.body.style.backgroundColor = '#ffffff';
+            clonedEl.style.backgroundColor = '#ffffff';
+            clonedEl.style.color = '#0f172a';
+
+            // Sisipkan standalone CSS murni ke header cloned doc
+            const standaloneStyle = clonedDoc.createElement('style');
+            standaloneStyle.id = 'html2canvas-standalone-styles';
+            standaloneStyle.textContent = standaloneCss;
+            clonedDoc.head.appendChild(standaloneStyle);
+
+            if (activeInlinedCss) {
+              const inlinedStyle = clonedDoc.createElement('style');
+              inlinedStyle.id = 'html2canvas-inlined-styles';
+              inlinedStyle.textContent = activeInlinedCss;
+              clonedDoc.head.appendChild(inlinedStyle);
+            }
+          },
         });
 
         const imgData = canvas.toDataURL('image/jpeg', 0.95);
@@ -169,8 +212,9 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({ isOpen, onCl
       setDownloadMessage(`Berkas PDF "${fileName}" (${currentPaper.name}) berhasil diunduh tanpa terpotong!`);
       setTimeout(() => setDownloadMessage(null), 6000);
     } catch (err) {
-      console.error('Gagal membuat PDF:', err);
-      // Fallback ke tab baru jika html2canvas gagal
+      console.error('Gagal membuat PDF langsung via html2canvas:', err);
+      setPdfProgress('Mengalihkan ke Dialog Cetak / Simpan PDF...');
+      // Fallback ke tab baru dengan styling 100% lengkap
       handleOpenPrintWindow();
     } finally {
       setIsGeneratingPdf(false);
@@ -183,10 +227,16 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({ isOpen, onCl
     const printableContent = document.getElementById('report-printable-area');
     if (!printableContent) return;
 
-    // Kumpulkan CSS styling yang aktif
-    const styleTags = Array.from(document.querySelectorAll('link[rel="stylesheet"], style'))
-      .map(el => el.outerHTML)
+    // 1. Kumpulkan link stylesheet dengan URL absolut untuk resolve di domain produksi (Vercel)
+    const absoluteStyleLinks = Array.from(document.querySelectorAll<HTMLLinkElement>('link[rel="stylesheet"]'))
+      .map(link => `<link rel="stylesheet" href="${link.href}">`)
       .join('\n');
+
+    // 2. Kumpulkan rules CSS aktif langsung dari DOM
+    const activeInlinedCss = getActiveInlinedCss();
+
+    // 3. Ambil standalone CSS yang menjamin semua tabel, kop, border, & layout ter-style 100%
+    const standaloneCss = getStandaloneReportCss(currentPaper.cssSize);
 
     const studentTitle = selectedStudentId === 'all'
       ? `Semua Siswa ${currentClass?.className || ''}`
@@ -197,99 +247,20 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({ isOpen, onCl
       <html lang="id">
       <head>
         <meta charset="UTF-8">
+        <base href="${window.location.origin}/">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Cetak Rapor - ${studentTitle} - SD IAS Al-Jannah (${currentPaper.label})</title>
-        ${styleTags}
-        <style>
-          @page {
-            size: ${currentPaper.cssSize} portrait;
-            margin: 0.5in !important; /* Margin otomatis 0.5 inci */
-          }
-          body {
-            background-color: #f1f5f9;
-            margin: 0;
-            padding: 20px 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          ::selection {
-            background-color: #059669;
-            color: #ffffff !important;
-          }
-          .no-print-toolbar {
-            position: sticky;
-            top: 0;
-            z-index: 9999;
-            background: #ffffff;
-            border-bottom: 1px solid #e2e8f0;
-            padding: 12px 24px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-            margin-bottom: 24px;
-          }
-          .print-btn {
-            background: #059669;
-            color: #ffffff;
-            border: none;
-            padding: 10px 20px;
-            font-size: 14px;
-            font-weight: 700;
-            border-radius: 8px;
-            cursor: pointer;
-            box-shadow: 0 2px 4px rgba(5, 150, 105, 0.3);
-          }
-          .print-btn:hover {
-            background: #047857;
-          }
-          .print-container {
-            max-width: ${currentPaper.widthMm}mm;
-            margin: 0 auto;
-            box-sizing: border-box;
-          }
-          [data-report-page="true"] {
-            margin-bottom: 24px;
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-            page-break-after: always !important;
-            break-after: page !important;
-          }
-          @media print {
-            @page {
-              size: ${currentPaper.cssSize} portrait;
-              margin: 0.5in !important; /* Margin otomatis 0.5 inci untuk print dialog */
-            }
-            body {
-              background: #ffffff !important;
-              padding: 0 !important;
-              margin: 0 !important;
-            }
-            .no-print-toolbar {
-              display: none !important;
-            }
-            .print-container {
-              max-width: 100% !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-            [data-report-page="true"] {
-              margin-bottom: 0 !important;
-              box-shadow: none !important;
-              border: none !important;
-              page-break-after: always !important;
-              break-after: page !important;
-            }
-          }
-        </style>
+        ${absoluteStyleLinks}
+        ${activeInlinedCss ? `<style id="inlined-app-styles">${activeInlinedCss}</style>` : ''}
+        <style id="standalone-report-styles">${standaloneCss}</style>
       </head>
       <body>
         <div class="no-print-toolbar">
           <div>
-            <strong style="font-size: 15px; color: #0f172a;">Dokumen Siap Cetak / Simpan PDF (${currentPaper.name})</strong>
-            <p style="margin: 2px 0 0 0; font-size: 12px; color: #64748b;">Ukuran kertas ${currentPaper.name} dengan margin 0.5 inci terpasang agar halaman tidak terpotong. Gunakan tombol di samping atau tekan Ctrl+P / Cmd+P.</p>
+            <h4>Dokumen Siap Cetak / Simpan PDF (${currentPaper.name})</h4>
+            <p>Ukuran kertas ${currentPaper.name} dengan margin 0.5 inci terpasang agar halaman tidak terpotong. Gunakan tombol di samping atau tekan Ctrl+P / Cmd+P.</p>
           </div>
-          <button class="print-btn" onclick="window.print()">
+          <button class="print-btn-action" onclick="window.print()">
             🖨️ Munculkan Dialog Print / Simpan PDF
           </button>
         </div>
@@ -307,10 +278,16 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({ isOpen, onCl
       </html>
     `;
 
-    const blob = new Blob([htmlDoc], { type: 'text/html;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const printTab = window.open(url, '_blank');
-    if (!printTab) {
+    // Gunakan window.open('', '_blank') dan document.write agar mewarisi origin host Vercel (bukan blob terisolasi)
+    const printTab = window.open('', '_blank');
+    if (printTab) {
+      printTab.document.open();
+      printTab.document.write(htmlDoc);
+      printTab.document.close();
+    } else {
+      // Fallback jika browser memblokir popup
+      const blob = new Blob([htmlDoc], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.target = '_blank';
