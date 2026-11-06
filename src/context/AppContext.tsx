@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  * 
  * Application Context and State Management for E-Rapor SD AJ
+ * Fully integrated with Supabase PostgreSQL Database & Realtime Subscriptions
  */
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import {
   User,
   UserRole,
@@ -53,11 +54,55 @@ import {
   INITIAL_REPORT_FINALIZATIONS,
   INITIAL_AUDIT_LOGS,
 } from '../data/mockData.ts';
+import {
+  getSupabaseClient,
+  fetchAllDataFromSupabase,
+  subscribeToAllChanges,
+  dbUpsert,
+  dbDelete,
+  mapSchoolProfileToDb,
+  mapSchoolProfileFromDb,
+  mapTeacherToDb,
+  mapTeacherFromDb,
+  mapClassToDb,
+  mapClassFromDb,
+  mapStudentToDb,
+  mapStudentFromDb,
+  mapSubjectToDb,
+  mapSubjectFromDb,
+  mapAssessmentToDb,
+  mapAssessmentFromDb,
+  mapExtracurricularToDb,
+  mapExtracurricularFromDb,
+  mapExtracurricularMemberToDb,
+  mapExtracurricularMemberFromDb,
+  mapAttendanceToDb,
+  mapAttendanceFromDb,
+  mapHomeroomNoteToDb,
+  mapHomeroomNoteFromDb,
+  mapAchievementToDb,
+  mapAchievementFromDb,
+  mapCocurricularAssessmentToDb,
+  mapCocurricularAssessmentFromDb,
+  mapAcademicYearFromDb,
+  mapSemesterFromDb,
+} from '../lib/supabase.ts';
+
+export interface SupabaseSyncState {
+  isConnected: boolean;
+  isRealtime: boolean;
+  lastSync: Date | null;
+  pendingPermissions: string[];
+}
 
 interface AppContextType {
   // Theme
   isDarkMode: boolean;
   toggleDarkMode: () => void;
+
+  // Supabase Realtime & Sync Status
+  supabaseSyncStatus: SupabaseSyncState;
+  refetchFromSupabase: () => Promise<void>;
 
   // Active User / Role
   currentUser: User;
@@ -78,32 +123,32 @@ interface AppContextType {
 
   // School Profile
   schoolProfile: SchoolProfile;
-  updateSchoolProfile: (profile: Partial<SchoolProfile>) => void;
+  updateSchoolProfile: (profile: Partial<SchoolProfile>) => Promise<void>;
 
   // Teachers
   teachers: Teacher[];
-  addTeacher: (teacher: Omit<Teacher, 'id'>) => void;
-  updateTeacher: (id: string, teacher: Partial<Teacher>) => void;
-  deleteTeacher: (id: string) => void;
+  addTeacher: (teacher: Omit<Teacher, 'id'>) => Promise<void>;
+  updateTeacher: (id: string, teacher: Partial<Teacher>) => Promise<void>;
+  deleteTeacher: (id: string) => Promise<void>;
 
   // Classes
   classes: ClassGroup[];
-  addClass: (cls: Omit<ClassGroup, 'id'>) => void;
-  updateClass: (id: string, cls: Partial<ClassGroup>) => void;
-  deleteClass: (id: string) => void;
+  addClass: (cls: Omit<ClassGroup, 'id'>) => Promise<void>;
+  updateClass: (id: string, cls: Partial<ClassGroup>) => Promise<void>;
+  deleteClass: (id: string) => Promise<void>;
 
   // Students
   students: Student[];
-  addStudent: (student: Omit<Student, 'id'>) => void;
-  updateStudent: (id: string, student: Partial<Student>) => void;
-  deleteStudent: (id: string) => void;
-  importStudents: (newStudents: Omit<Student, 'id'>[]) => void;
+  addStudent: (student: Omit<Student, 'id'>) => Promise<void>;
+  updateStudent: (id: string, student: Partial<Student>) => Promise<void>;
+  deleteStudent: (id: string) => Promise<void>;
+  importStudents: (newStudents: Omit<Student, 'id'>[]) => Promise<void>;
 
   // Subjects
   subjects: Subject[];
-  addSubject: (subj: Omit<Subject, 'id'>) => void;
-  updateSubject: (id: string, subj: Partial<Subject>) => void;
-  deleteSubject: (id: string) => void;
+  addSubject: (subj: Omit<Subject, 'id'>) => Promise<void>;
+  updateSubject: (id: string, subj: Partial<Subject>) => Promise<void>;
+  deleteSubject: (id: string) => Promise<void>;
 
   // CP & TP
   cps: LearningOutcomeCP[];
@@ -117,14 +162,14 @@ interface AppContextType {
 
   // Assessments
   assessments: StudentAssessment[];
-  saveStudentAssessment: (assessment: Omit<StudentAssessment, 'id' | 'updatedAt'>) => void;
-  bulkSaveAssessments: (newAssessments: StudentAssessment[]) => void;
+  saveStudentAssessment: (assessment: Omit<StudentAssessment, 'id' | 'updatedAt'>) => Promise<void>;
+  bulkSaveAssessments: (newAssessments: StudentAssessment[]) => Promise<void>;
 
   // Kokurikuler (Rubrik dan Asesmen)
   cocurricularActivities: CocurricularActivity[];
   cocurricularRubrics: CocurricularRubric[];
   cocurricularAssessments: CocurricularAssessment[];
-  saveCocurricularAssessment: (assessment: Omit<CocurricularAssessment, 'id'>) => void;
+  saveCocurricularAssessment: (assessment: Omit<CocurricularAssessment, 'id'>) => Promise<void>;
   addCocurricularActivity: (activity: Omit<CocurricularActivity, 'id'>, rubrics: Omit<CocurricularRubric, 'id' | 'activityId'>[]) => void;
   addCocurricularRubric: (rubric: Omit<CocurricularRubric, 'id'>) => void;
   updateCocurricularRubric: (id: string, rubric: Partial<CocurricularRubric>) => void;
@@ -133,27 +178,27 @@ interface AppContextType {
   // Extracurriculars
   extracurriculars: Extracurricular[];
   extracurricularMembers: ExtracurricularMember[];
-  addExtracurricular: (ekskul: Omit<Extracurricular, 'id'>) => void;
-  updateExtracurricular: (id: string, ekskul: Partial<Extracurricular>) => void;
-  deleteExtracurricular: (id: string) => void;
-  saveExtracurricularMember: (member: Omit<ExtracurricularMember, 'id'>) => void;
-  bulkSaveExtracurricularMembers: (members: Omit<ExtracurricularMember, 'id'>[]) => void;
-  removeExtracurricularMember: (studentId: string, extracurricularId: string, semesterId: string) => void;
+  addExtracurricular: (ekskul: Omit<Extracurricular, 'id'>) => Promise<void>;
+  updateExtracurricular: (id: string, ekskul: Partial<Extracurricular>) => Promise<void>;
+  deleteExtracurricular: (id: string) => Promise<void>;
+  saveExtracurricularMember: (member: Omit<ExtracurricularMember, 'id'>) => Promise<void>;
+  bulkSaveExtracurricularMembers: (members: Omit<ExtracurricularMember, 'id'>[]) => Promise<void>;
+  removeExtracurricularMember: (studentId: string, extracurricularId: string, semesterId: string) => Promise<void>;
 
   // Attendance
   attendances: StudentAttendance[];
-  saveAttendance: (att: Omit<StudentAttendance, 'id'>) => void;
-  bulkSaveAttendance: (items: Omit<StudentAttendance, 'id'>[]) => void;
+  saveAttendance: (att: Omit<StudentAttendance, 'id'>) => Promise<void>;
+  bulkSaveAttendance: (items: Omit<StudentAttendance, 'id'>[]) => Promise<void>;
 
   // Homeroom Notes
   homeroomNotes: HomeroomNote[];
-  saveHomeroomNote: (note: Omit<HomeroomNote, 'id'>) => void;
+  saveHomeroomNote: (note: Omit<HomeroomNote, 'id'>) => Promise<void>;
 
   // Achievements
   achievements: StudentAchievement[];
-  addAchievement: (ach: Omit<StudentAchievement, 'id'>) => void;
-  updateAchievement: (id: string, ach: Partial<StudentAchievement>) => void;
-  deleteAchievement: (id: string) => void;
+  addAchievement: (ach: Omit<StudentAchievement, 'id'>) => Promise<void>;
+  updateAchievement: (id: string, ach: Partial<StudentAchievement>) => Promise<void>;
+  deleteAchievement: (id: string) => Promise<void>;
 
   // Finalization
   reportFinalizations: ReportFinalization[];
@@ -192,7 +237,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // Active view
   const [currentView, setCurrentView] = useState<string>('dashboard');
 
-  // Load from local storage or fallback to defaults
+  // Supabase Realtime and Sync Status
+  const [supabaseSyncStatus, setSupabaseSyncStatus] = useState<SupabaseSyncState>({
+    isConnected: false,
+    isRealtime: false,
+    lastSync: null,
+    pendingPermissions: [],
+  });
+
+  // State initialization with localStorage fallback
   const [schoolProfile, setSchoolProfile] = useState<SchoolProfile>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_school`);
     if (!saved) return INITIAL_SCHOOL_PROFILE;
@@ -205,8 +258,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         ...INITIAL_SCHOOL_PROFILE,
         ...parsed,
         logoUrl,
-        reportDateSem1: parsed.reportDateSem1 || '2026-12-19',
-        reportDateSem2: parsed.reportDateSem2 || '2027-06-25',
       };
     } catch {
       return INITIAL_SCHOOL_PROFILE;
@@ -232,16 +283,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [teachers, setTeachers] = useState<Teacher[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_teachers`);
-    if (!saved) return INITIAL_TEACHERS;
-    try {
-      const parsed: any[] = JSON.parse(saved);
-      return parsed.map((t, idx) => ({
-        ...t,
-        position: t.position || (t.assignedHomeroomClassId ? 'Wali Kelas' : (idx % 2 === 0 ? 'Guru Kelas' : 'Guru Bidang')),
-      }));
-    } catch {
-      return INITIAL_TEACHERS;
-    }
+    return saved ? JSON.parse(saved) : INITIAL_TEACHERS;
   });
 
   const [classes, setClasses] = useState<ClassGroup[]>(() => {
@@ -281,61 +323,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [cocurricularRubrics, setCocurricularRubrics] = useState<CocurricularRubric[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_p5_rubrics`);
-    if (!saved) return INITIAL_COCURRICULAR_RUBRICS;
-    try {
-      const parsed: any[] = JSON.parse(saved);
-      return parsed.map((r, i) => {
-        const fallback = INITIAL_COCURRICULAR_RUBRICS[i % INITIAL_COCURRICULAR_RUBRICS.length] || INITIAL_COCURRICULAR_RUBRICS[0];
-        return {
-          id: r.id || `rubric-${i + 1}`,
-          activityId: r.activityId || fallback.activityId,
-          dimension: r.dimension || fallback.dimension,
-          theme: r.theme || fallback.theme,
-          objectives: r.objectives || r.objective || fallback.objectives,
-          objective: r.objective || r.objectives || fallback.objectives,
-          activityForm: r.activityForm || fallback.activityForm,
-          relatedSubjects: Array.isArray(r.relatedSubjects) && r.relatedSubjects.length > 0 ? r.relatedSubjects : fallback.relatedSubjects,
-          indicator: r.indicator || fallback.indicator,
-        };
-      });
-    } catch {
-      return INITIAL_COCURRICULAR_RUBRICS;
-    }
+    return saved ? JSON.parse(saved) : INITIAL_COCURRICULAR_RUBRICS;
   });
 
   const [cocurricularAssessments, setCocurricularAssessments] = useState<CocurricularAssessment[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_p5_assessments`);
-    if (!saved) return INITIAL_COCURRICULAR_ASSESSMENTS;
-    try {
-      const parsed: any[] = JSON.parse(saved);
-      return parsed.map(a => ({
-        ...a,
-        grade: a.grade || (a.achievementLevel === 'SB' ? 'SB' : a.achievementLevel === 'BB' ? 'K' : a.achievementLevel === 'MB' ? 'C' : 'B'),
-        achievementLevel: a.achievementLevel || a.grade || 'B',
-        teacherNote: a.teacherNote || a.notes || 'Menunjukkan capaian pemahaman kokurikuler yang baik.',
-      }));
-    } catch {
-      return INITIAL_COCURRICULAR_ASSESSMENTS;
-    }
+    return saved ? JSON.parse(saved) : INITIAL_COCURRICULAR_ASSESSMENTS;
   });
 
   const [extracurriculars, setExtracurriculars] = useState<Extracurricular[]>(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_ekskul`);
-    if (!saved) return INITIAL_EXTRACURRICULARS;
-    try {
-      const parsed: any[] = JSON.parse(saved);
-      return parsed.map((e, idx) => {
-        const fallback = INITIAL_EXTRACURRICULARS[idx % INITIAL_EXTRACURRICULARS.length] || INITIAL_EXTRACURRICULARS[0];
-        return {
-          ...fallback,
-          ...e,
-          category: (e.category === 'wajib' || e.category === 'pilihan') ? e.category : fallback.category,
-          coachName: e.coachName || fallback.coachName || 'Pembimbing Sekolah',
-        };
-      });
-    } catch {
-      return INITIAL_EXTRACURRICULARS;
-    }
+    return saved ? JSON.parse(saved) : INITIAL_EXTRACURRICULARS;
   });
 
   const [extracurricularMembers, setExtracurricularMembers] = useState<ExtracurricularMember[]>(() => {
@@ -368,7 +366,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return saved ? JSON.parse(saved) : INITIAL_AUDIT_LOGS;
   });
 
-  // Save to localStorage when state updates
+  // Keep local storage synchronized as an offline cache
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY}_school`, JSON.stringify(schoolProfile));
     localStorage.setItem(`${STORAGE_KEY}_academic_years`, JSON.stringify(academicYears));
@@ -411,7 +409,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logAction('SWITCH_SEMESTER', 'semester', id, `Mengubah semester aktif ke ${id}`);
   };
 
-  // Role switching
   const switchUserRole = (role: UserRole) => {
     const targetUser = users.find(u => u.role === role) || users[0];
     setCurrentUser(targetUser);
@@ -432,99 +429,455 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAuditLogs(prev => [newLog, ...prev.slice(0, 99)]);
   };
 
-  // CRUD actions
-  const updateSchoolProfile = (profile: Partial<SchoolProfile>) => {
-    setSchoolProfile(prev => ({ ...prev, ...profile }));
-    logAction('UPDATE_SCHOOL_PROFILE', 'school_profile', schoolProfile.id, 'Memperbarui data profil sekolah');
+  // ==============================================================================
+  // SUPABASE DATA FETCH & REALTIME SUBSCRIPTION
+  // ==============================================================================
+
+  const refetchFromSupabase = useCallback(async () => {
+    try {
+      const data = await fetchAllDataFromSupabase();
+      if (data.schoolProfile) {
+        setSchoolProfile(data.schoolProfile);
+      }
+      if (data.academicYears && data.academicYears.length > 0) {
+        setAcademicYears(data.academicYears);
+      }
+      if (data.semesters && data.semesters.length > 0) {
+        setSemesters(data.semesters);
+      }
+      if (data.teachers && data.teachers.length > 0) {
+        setTeachers(data.teachers);
+      }
+      if (data.subjects && data.subjects.length > 0) {
+        setSubjects(data.subjects);
+      }
+      if (data.extracurriculars && data.extracurriculars.length > 0) {
+        setExtracurriculars(data.extracurriculars);
+      }
+      if (data.classes && data.classes.length > 0) {
+        setClasses(data.classes);
+      }
+      if (data.students && data.students.length > 0) {
+        setStudents(data.students);
+      }
+      if (data.assessments && data.assessments.length > 0) {
+        setAssessments(data.assessments);
+      }
+      if (data.attendances && data.attendances.length > 0) {
+        setAttendances(data.attendances);
+      }
+      if (data.homeroomNotes && data.homeroomNotes.length > 0) {
+        setHomeroomNotes(data.homeroomNotes);
+      }
+      if (data.achievements && data.achievements.length > 0) {
+        setAchievements(data.achievements);
+      }
+      if (data.extracurricularMembers && data.extracurricularMembers.length > 0) {
+        setExtracurricularMembers(data.extracurricularMembers);
+      }
+      if (data.cocurricularAssessments && data.cocurricularAssessments.length > 0) {
+        setCocurricularAssessments(data.cocurricularAssessments);
+      }
+
+      setSupabaseSyncStatus({
+        isConnected: true,
+        isRealtime: true,
+        lastSync: new Date(),
+        pendingPermissions: data.permissionErrors,
+      });
+
+      // If classes or students in Supabase are empty, seed them so other browsers have data
+      const client = getSupabaseClient();
+      if (client) {
+        if (!data.classes || data.classes.length === 0) {
+          const rows = INITIAL_CLASSES.map(mapClassToDb);
+          await client.from('classes').upsert(rows);
+        }
+        if (!data.students || data.students.length === 0) {
+          const rows = INITIAL_STUDENTS.map(mapStudentToDb);
+          await client.from('students').upsert(rows);
+        }
+      }
+    } catch (err) {
+      console.warn('Error fetching Supabase data:', err);
+    }
+  }, []);
+
+  // Initial load from Supabase + start Realtime subscription
+  useEffect(() => {
+    refetchFromSupabase();
+
+    // Subscribe to remote changes from all browsers
+    const unsubscribe = subscribeToAllChanges((table, eventType, newRow, oldRow) => {
+      setSupabaseSyncStatus(prev => ({ ...prev, lastSync: new Date() }));
+
+      switch (table) {
+        case 'students': {
+          if (eventType === 'DELETE') {
+            setStudents(prev => prev.filter(s => s.id !== oldRow.id));
+          } else {
+            const mapped = mapStudentFromDb(newRow);
+            setStudents(prev => {
+              const idx = prev.findIndex(s => s.id === mapped.id);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = mapped;
+                return updated;
+              }
+              return [...prev, mapped];
+            });
+          }
+          break;
+        }
+
+        case 'teachers': {
+          if (eventType === 'DELETE') {
+            setTeachers(prev => prev.filter(t => t.id !== oldRow.id));
+          } else {
+            const mapped = mapTeacherFromDb(newRow);
+            setTeachers(prev => {
+              const idx = prev.findIndex(t => t.id === mapped.id);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = mapped;
+                return updated;
+              }
+              return [...prev, mapped];
+            });
+          }
+          break;
+        }
+
+        case 'classes': {
+          if (eventType === 'DELETE') {
+            setClasses(prev => prev.filter(c => c.id !== oldRow.id));
+          } else {
+            const mapped = mapClassFromDb(newRow);
+            setClasses(prev => {
+              const idx = prev.findIndex(c => c.id === mapped.id);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = mapped;
+                return updated;
+              }
+              return [...prev, mapped];
+            });
+          }
+          break;
+        }
+
+        case 'subjects': {
+          if (eventType === 'DELETE') {
+            setSubjects(prev => prev.filter(s => s.id !== oldRow.id));
+          } else {
+            const mapped = mapSubjectFromDb(newRow);
+            setSubjects(prev => {
+              const idx = prev.findIndex(s => s.id === mapped.id);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = mapped;
+                return updated;
+              }
+              return [...prev, mapped];
+            });
+          }
+          break;
+        }
+
+        case 'school_profiles': {
+          if (eventType !== 'DELETE') {
+            const mapped = mapSchoolProfileFromDb(newRow);
+            setSchoolProfile(mapped);
+          }
+          break;
+        }
+
+        case 'assessments': {
+          if (eventType === 'DELETE') {
+            setAssessments(prev => prev.filter(a => a.id !== oldRow.id));
+          } else {
+            const mapped = mapAssessmentFromDb(newRow);
+            setAssessments(prev => {
+              const idx = prev.findIndex(a => a.id === mapped.id);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = mapped;
+                return updated;
+              }
+              return [...prev, mapped];
+            });
+          }
+          break;
+        }
+
+        case 'extracurriculars': {
+          if (eventType === 'DELETE') {
+            setExtracurriculars(prev => prev.filter(e => e.id !== oldRow.id));
+          } else {
+            const mapped = mapExtracurricularFromDb(newRow);
+            setExtracurriculars(prev => {
+              const idx = prev.findIndex(e => e.id === mapped.id);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = mapped;
+                return updated;
+              }
+              return [...prev, mapped];
+            });
+          }
+          break;
+        }
+
+        case 'extracurricular_members': {
+          if (eventType === 'DELETE') {
+            setExtracurricularMembers(prev => prev.filter(m => m.id !== oldRow.id));
+          } else {
+            const mapped = mapExtracurricularMemberFromDb(newRow);
+            setExtracurricularMembers(prev => {
+              const idx = prev.findIndex(m => m.id === mapped.id);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = mapped;
+                return updated;
+              }
+              return [...prev, mapped];
+            });
+          }
+          break;
+        }
+
+        case 'attendances': {
+          if (eventType === 'DELETE') {
+            setAttendances(prev => prev.filter(a => a.id !== oldRow.id));
+          } else {
+            const mapped = mapAttendanceFromDb(newRow);
+            setAttendances(prev => {
+              const idx = prev.findIndex(a => a.id === mapped.id);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = mapped;
+                return updated;
+              }
+              return [...prev, mapped];
+            });
+          }
+          break;
+        }
+
+        case 'homeroom_notes': {
+          if (eventType === 'DELETE') {
+            setHomeroomNotes(prev => prev.filter(n => n.id !== oldRow.id));
+          } else {
+            const mapped = mapHomeroomNoteFromDb(newRow);
+            setHomeroomNotes(prev => {
+              const idx = prev.findIndex(n => n.id === mapped.id);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = mapped;
+                return updated;
+              }
+              return [...prev, mapped];
+            });
+          }
+          break;
+        }
+
+        case 'student_achievements': {
+          if (eventType === 'DELETE') {
+            setAchievements(prev => prev.filter(a => a.id !== oldRow.id));
+          } else {
+            const mapped = mapAchievementFromDb(newRow);
+            setAchievements(prev => {
+              const idx = prev.findIndex(a => a.id === mapped.id);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = mapped;
+                return updated;
+              }
+              return [...prev, mapped];
+            });
+          }
+          break;
+        }
+
+        case 'cocurricular_assessments': {
+          if (eventType === 'DELETE') {
+            setCocurricularAssessments(prev => prev.filter(c => c.id !== oldRow.id));
+          } else {
+            const mapped = mapCocurricularAssessmentFromDb(newRow);
+            setCocurricularAssessments(prev => {
+              const idx = prev.findIndex(c => c.id === mapped.id);
+              if (idx >= 0) {
+                const updated = [...prev];
+                updated[idx] = mapped;
+                return updated;
+              }
+              return [...prev, mapped];
+            });
+          }
+          break;
+        }
+
+        default:
+          break;
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [refetchFromSupabase]);
+
+  // ==============================================================================
+  // DIRECT CRUD OPERATIONS (PERSISTED DIRECTLY TO SUPABASE WITH OPTIMISTIC STATE)
+  // ==============================================================================
+
+  const updateSchoolProfile = async (profile: Partial<SchoolProfile>) => {
+    const updated = { ...schoolProfile, ...profile };
+    setSchoolProfile(updated);
+    logAction('UPDATE_SCHOOL_PROFILE', 'school_profile', updated.id, 'Memperbarui data profil sekolah');
+    await dbUpsert('school_profiles', mapSchoolProfileToDb(updated));
   };
 
-  const addTeacher = (teacher: Omit<Teacher, 'id'>) => {
+  const addTeacher = async (teacher: Omit<Teacher, 'id'>) => {
     const newTch: Teacher = { ...teacher, id: `tch-${Date.now()}` };
     setTeachers(prev => [...prev, newTch]);
     logAction('ADD_TEACHER', 'teacher', newTch.id, `Menambahkan guru baru: ${newTch.fullName}`);
+    await dbUpsert('teachers', mapTeacherToDb(newTch));
   };
 
-  const updateTeacher = (id: string, teacher: Partial<Teacher>) => {
-    setTeachers(prev => prev.map(t => t.id === id ? { ...t, ...teacher } : t));
+  const updateTeacher = async (id: string, teacher: Partial<Teacher>) => {
+    let updatedTch: Teacher | undefined;
+    setTeachers(prev => prev.map(t => {
+      if (t.id === id) {
+        updatedTch = { ...t, ...teacher };
+        return updatedTch;
+      }
+      return t;
+    }));
     logAction('UPDATE_TEACHER', 'teacher', id, `Memperbarui data guru ${id}`);
+    if (updatedTch) {
+      await dbUpsert('teachers', mapTeacherToDb(updatedTch));
+    }
   };
 
-  const deleteTeacher = (id: string) => {
+  const deleteTeacher = async (id: string) => {
     setTeachers(prev => prev.filter(t => t.id !== id));
     logAction('DELETE_TEACHER', 'teacher', id, `Menghapus data guru ${id}`);
+    await dbDelete('teachers', id);
   };
 
-  const addClass = (cls: Omit<ClassGroup, 'id'>) => {
+  const addClass = async (cls: Omit<ClassGroup, 'id'>) => {
     const newCls: ClassGroup = { ...cls, id: `cls-${Date.now()}` };
     setClasses(prev => [...prev, newCls]);
     logAction('ADD_CLASS', 'class', newCls.id, `Menambahkan kelas baru: ${newCls.className}`);
+    await dbUpsert('classes', mapClassToDb(newCls));
   };
 
-  const updateClass = (id: string, cls: Partial<ClassGroup>) => {
-    setClasses(prev => prev.map(c => c.id === id ? { ...c, ...cls } : c));
+  const updateClass = async (id: string, cls: Partial<ClassGroup>) => {
+    let updatedCls: ClassGroup | undefined;
+    setClasses(prev => prev.map(c => {
+      if (c.id === id) {
+        updatedCls = { ...c, ...cls };
+        return updatedCls;
+      }
+      return c;
+    }));
     logAction('UPDATE_CLASS', 'class', id, `Memperbarui data kelas ${id}`);
+    if (updatedCls) {
+      await dbUpsert('classes', mapClassToDb(updatedCls));
+    }
   };
 
-  const deleteClass = (id: string) => {
+  const deleteClass = async (id: string) => {
     setClasses(prev => prev.filter(c => c.id !== id));
     logAction('DELETE_CLASS', 'class', id, `Menghapus kelas ${id}`);
+    await dbDelete('classes', id);
   };
 
-  const addStudent = (student: Omit<Student, 'id'>) => {
+  const addStudent = async (student: Omit<Student, 'id'>) => {
     const newStd: Student = { ...student, id: `std-${Date.now()}` };
     setStudents(prev => [...prev, newStd]);
     logAction('ADD_STUDENT', 'student', newStd.id, `Menambahkan siswa baru: ${newStd.fullName}`);
+    await dbUpsert('students', mapStudentToDb(newStd));
   };
 
-  const updateStudent = (id: string, student: Partial<Student>) => {
-    setStudents(prev => prev.map(s => s.id === id ? { ...s, ...student } : s));
+  const updateStudent = async (id: string, student: Partial<Student>) => {
+    let updatedStd: Student | undefined;
+    setStudents(prev => prev.map(s => {
+      if (s.id === id) {
+        updatedStd = { ...s, ...student };
+        return updatedStd;
+      }
+      return s;
+    }));
     logAction('UPDATE_STUDENT', 'student', id, `Memperbarui data siswa ${id}`);
+    if (updatedStd) {
+      await dbUpsert('students', mapStudentToDb(updatedStd));
+    }
   };
 
-  const deleteStudent = (id: string) => {
+  const deleteStudent = async (id: string) => {
     setStudents(prev => prev.filter(s => s.id !== id));
     logAction('DELETE_STUDENT', 'student', id, `Menghapus/mengarsipkan siswa ${id}`);
+    await dbDelete('students', id);
   };
 
-  const importStudents = (newStudents: Omit<Student, 'id'>[]) => {
+  const importStudents = async (newStudents: Omit<Student, 'id'>[]) => {
+    const preparedList: Student[] = [];
     setStudents(prev => {
       const copy = [...prev];
       newStudents.forEach((s, idx) => {
-        const existingIdx = copy.findIndex(exist => 
-          (s.nis && exist.nis.trim() === s.nis.trim()) || 
+        const existingIdx = copy.findIndex(exist =>
+          (s.nis && exist.nis.trim() === s.nis.trim()) ||
           (s.nisn && exist.nisn.trim() === s.nisn.trim())
         );
         if (existingIdx >= 0) {
-          copy[existingIdx] = {
-            ...copy[existingIdx],
-            ...s,
-          };
+          copy[existingIdx] = { ...copy[existingIdx], ...s };
+          preparedList.push(copy[existingIdx]);
         } else {
-          copy.push({
-            ...s,
-            id: `std-imp-${Date.now()}-${idx}`,
-          });
+          const item: Student = { ...s, id: `std-imp-${Date.now()}-${idx}` };
+          copy.push(item);
+          preparedList.push(item);
         }
       });
       return copy;
     });
-    logAction('IMPORT_STUDENTS', 'student', 'bulk', `Mengimpor/memperbarui ${newStudents.length} data siswa dan orang tua`);
+    logAction('IMPORT_STUDENTS', 'student', 'bulk', `Mengimpor/memperbarui ${newStudents.length} data siswa`);
+
+    const client = getSupabaseClient();
+    if (client && preparedList.length > 0) {
+      const rows = preparedList.map(mapStudentToDb);
+      await client.from('students').upsert(rows);
+    }
   };
 
-  const addSubject = (subj: Omit<Subject, 'id'>) => {
+  const addSubject = async (subj: Omit<Subject, 'id'>) => {
     const newSubj: Subject = { ...subj, id: `sbj-${Date.now()}` };
     setSubjects(prev => [...prev, newSubj]);
     logAction('ADD_SUBJECT', 'subject', newSubj.id, `Menambahkan mapel baru: ${newSubj.subjectName}`);
+    await dbUpsert('subjects', mapSubjectToDb(newSubj));
   };
 
-  const updateSubject = (id: string, subj: Partial<Subject>) => {
-    setSubjects(prev => prev.map(s => s.id === id ? { ...s, ...subj } : s));
+  const updateSubject = async (id: string, subj: Partial<Subject>) => {
+    let updatedSubj: Subject | undefined;
+    setSubjects(prev => prev.map(s => {
+      if (s.id === id) {
+        updatedSubj = { ...s, ...subj };
+        return updatedSubj;
+      }
+      return s;
+    }));
     logAction('UPDATE_SUBJECT', 'subject', id, `Memperbarui data mapel ${id}`);
+    if (updatedSubj) {
+      await dbUpsert('subjects', mapSubjectToDb(updatedSubj));
+    }
   };
 
-  const deleteSubject = (id: string) => {
+  const deleteSubject = async (id: string) => {
     setSubjects(prev => prev.filter(s => s.id !== id));
     logAction('DELETE_SUBJECT', 'subject', id, `Menghapus mapel ${id}`);
+    await dbDelete('subjects', id);
   };
 
   const addCP = (cp: Omit<LearningOutcomeCP, 'id'>) => {
@@ -560,8 +913,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logAction('DELETE_TP', 'tp', id, `Menghapus Tujuan Pembelajaran ${id}`);
   };
 
-  const saveStudentAssessment = (assessment: Omit<StudentAssessment, 'id' | 'updatedAt'>) => {
+  const saveStudentAssessment = async (assessment: Omit<StudentAssessment, 'id' | 'updatedAt'>) => {
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    let targetAssessment: StudentAssessment;
+
     setAssessments(prev => {
       const idx = prev.findIndex(a =>
         a.classId === assessment.classId &&
@@ -571,17 +926,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
       if (idx >= 0) {
         const updated = [...prev];
-        updated[idx] = { ...assessment, id: prev[idx].id, updatedAt: now };
+        targetAssessment = { ...assessment, id: prev[idx].id, updatedAt: now };
+        updated[idx] = targetAssessment;
         return updated;
       } else {
-        return [...prev, { ...assessment, id: `as-${Date.now()}`, updatedAt: now }];
+        targetAssessment = { ...assessment, id: `as-${Date.now()}`, updatedAt: now };
+        return [...prev, targetAssessment];
       }
     });
+
     logAction('SAVE_ASSESSMENT', 'student_assessment', assessment.studentId, `Menyimpan penilaian siswa ${assessment.studentId} pada mapel ${assessment.subjectId}`);
+    if (targetAssessment!) {
+      await dbUpsert('assessments', mapAssessmentToDb(targetAssessment!));
+    }
   };
 
-  const bulkSaveAssessments = (newAssessments: StudentAssessment[]) => {
+  const bulkSaveAssessments = async (newAssessments: StudentAssessment[]) => {
     const now = new Date().toISOString().replace('T', ' ').substring(0, 19);
+    const preparedList: StudentAssessment[] = [];
+
     setAssessments(prev => {
       const copy = [...prev];
       newAssessments.forEach(item => {
@@ -592,17 +955,29 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           a.semesterId === item.semesterId
         );
         if (idx >= 0) {
-          copy[idx] = { ...item, updatedAt: now };
+          const updated = { ...item, updatedAt: now };
+          copy[idx] = updated;
+          preparedList.push(updated);
         } else {
-          copy.push({ ...item, id: `as-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`, updatedAt: now });
+          const created = { ...item, id: `as-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`, updatedAt: now };
+          copy.push(created);
+          preparedList.push(created);
         }
       });
       return copy;
     });
+
     logAction('BULK_SAVE_ASSESSMENTS', 'student_assessment', 'bulk', `Menyimpan massal ${newAssessments.length} rekap penilaian`);
+
+    const client = getSupabaseClient();
+    if (client && preparedList.length > 0) {
+      const rows = preparedList.map(mapAssessmentToDb);
+      await client.from('assessments').upsert(rows);
+    }
   };
 
-  const saveCocurricularAssessment = (assessment: Omit<CocurricularAssessment, 'id'>) => {
+  const saveCocurricularAssessment = async (assessment: Omit<CocurricularAssessment, 'id'>) => {
+    let saved: CocurricularAssessment;
     setCocurricularAssessments(prev => {
       const idx = prev.findIndex(a =>
         a.activityId === assessment.activityId &&
@@ -612,13 +987,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
       if (idx >= 0) {
         const updated = [...prev];
-        updated[idx] = { ...assessment, id: prev[idx].id };
+        saved = { ...assessment, id: prev[idx].id };
+        updated[idx] = saved;
         return updated;
       } else {
-        return [...prev, { ...assessment, id: `ca-${Date.now()}` }];
+        saved = { ...assessment, id: `ca-${Date.now()}` };
+        return [...prev, saved];
       }
     });
     logAction('SAVE_KOKURIKULER_ASSESSMENT', 'cocurricular_assessment', assessment.studentId, 'Menyimpan asesmen kokurikuler');
+    if (saved!) {
+      await dbUpsert('cocurricular_assessments', mapCocurricularAssessmentToDb(saved!));
+    }
   };
 
   const addCocurricularActivity = (activity: Omit<CocurricularActivity, 'id'>, rubrics: Omit<CocurricularRubric, 'id' | 'activityId'>[]) => {
@@ -651,24 +1031,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     logAction('DELETE_KOKURIKULER_RUBRIC', 'cocurricular_rubric', id, `Menghapus rubrik kokurikuler: ${id}`);
   };
 
-  const addExtracurricular = (ekskul: Omit<Extracurricular, 'id'>) => {
+  const addExtracurricular = async (ekskul: Omit<Extracurricular, 'id'>) => {
     const newEkskul: Extracurricular = { ...ekskul, id: `ekskul-${Date.now()}` };
     setExtracurriculars(prev => [...prev, newEkskul]);
     logAction('ADD_EKSKUL', 'extracurricular', newEkskul.id, `Menambahkan ekskul baru: ${newEkskul.name}`);
+    await dbUpsert('extracurriculars', mapExtracurricularToDb(newEkskul));
   };
 
-  const updateExtracurricular = (id: string, ekskul: Partial<Extracurricular>) => {
-    setExtracurriculars(prev => prev.map(e => e.id === id ? { ...e, ...ekskul } : e));
+  const updateExtracurricular = async (id: string, ekskul: Partial<Extracurricular>) => {
+    let updatedEks: Extracurricular | undefined;
+    setExtracurriculars(prev => prev.map(e => {
+      if (e.id === id) {
+        updatedEks = { ...e, ...ekskul };
+        return updatedEks;
+      }
+      return e;
+    }));
     logAction('UPDATE_EKSKUL', 'extracurricular', id, `Memperbarui ekskul: ${id}`);
+    if (updatedEks) {
+      await dbUpsert('extracurriculars', mapExtracurricularToDb(updatedEks));
+    }
   };
 
-  const deleteExtracurricular = (id: string) => {
+  const deleteExtracurricular = async (id: string) => {
     setExtracurriculars(prev => prev.filter(e => e.id !== id));
     setExtracurricularMembers(prev => prev.filter(m => m.extracurricularId !== id));
     logAction('DELETE_EKSKUL', 'extracurricular', id, `Menghapus ekskul: ${id}`);
+    await dbDelete('extracurriculars', id);
   };
 
-  const saveExtracurricularMember = (member: Omit<ExtracurricularMember, 'id'>) => {
+  const saveExtracurricularMember = async (member: Omit<ExtracurricularMember, 'id'>) => {
+    let saved: ExtracurricularMember;
     setExtracurricularMembers(prev => {
       const idx = prev.findIndex(m =>
         m.extracurricularId === member.extracurricularId &&
@@ -677,16 +1070,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       );
       if (idx >= 0) {
         const updated = [...prev];
-        updated[idx] = { ...member, id: prev[idx].id };
+        saved = { ...member, id: prev[idx].id };
+        updated[idx] = saved;
         return updated;
       } else {
-        return [...prev, { ...member, id: `em-${Date.now()}` }];
+        saved = { ...member, id: `em-${Date.now()}` };
+        return [...prev, saved];
       }
     });
     logAction('SAVE_EKSKUL_GRADE', 'extracurricular_member', member.studentId, 'Menyimpan nilai ekstrakurikuler siswa');
+    if (saved!) {
+      await dbUpsert('extracurricular_members', mapExtracurricularMemberToDb(saved!));
+    }
   };
 
-  const bulkSaveExtracurricularMembers = (members: Omit<ExtracurricularMember, 'id'>[]) => {
+  const bulkSaveExtracurricularMembers = async (members: Omit<ExtracurricularMember, 'id'>[]) => {
+    const preparedList: ExtracurricularMember[] = [];
     setExtracurricularMembers(prev => {
       const copy = [...prev];
       members.forEach(member => {
@@ -696,81 +1095,135 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           m.semesterId === member.semesterId
         );
         if (idx >= 0) {
-          copy[idx] = { ...member, id: copy[idx].id };
+          const item = { ...member, id: copy[idx].id };
+          copy[idx] = item;
+          preparedList.push(item);
         } else {
-          copy.push({ ...member, id: `em-${Date.now()}-${Math.random().toString(36).substring(2, 6)}` });
+          const item = { ...member, id: `em-${Date.now()}-${Math.random().toString(36).substring(2, 6)}` };
+          copy.push(item);
+          preparedList.push(item);
         }
       });
       return copy;
     });
     logAction('BULK_SAVE_EKSKUL', 'extracurricular_member', 'bulk', `Menyimpan ${members.length} nilai ekstrakurikuler`);
+
+    const client = getSupabaseClient();
+    if (client && preparedList.length > 0) {
+      const rows = preparedList.map(mapExtracurricularMemberToDb);
+      await client.from('extracurricular_members').upsert(rows);
+    }
   };
 
-  const removeExtracurricularMember = (studentId: string, extracurricularId: string, semesterId: string) => {
+  const removeExtracurricularMember = async (studentId: string, extracurricularId: string, semesterId: string) => {
     setExtracurricularMembers(prev =>
       prev.filter(m => !(m.studentId === studentId && m.extracurricularId === extracurricularId && m.semesterId === semesterId))
     );
     logAction('REMOVE_EKSKUL_MEMBER', 'extracurricular_member', studentId, 'Menghapus pilihan ekskul siswa');
+
+    const client = getSupabaseClient();
+    if (client) {
+      await client.from('extracurricular_members')
+        .delete()
+        .eq('student_id', studentId)
+        .eq('extracurricular_id', extracurricularId)
+        .eq('semester_id', semesterId);
+    }
   };
 
-  const saveAttendance = (att: Omit<StudentAttendance, 'id'>) => {
+  const saveAttendance = async (att: Omit<StudentAttendance, 'id'>) => {
+    let saved: StudentAttendance;
     setAttendances(prev => {
       const idx = prev.findIndex(a => a.studentId === att.studentId && a.semesterId === att.semesterId);
       if (idx >= 0) {
         const updated = [...prev];
-        updated[idx] = { ...att, id: prev[idx].id };
+        saved = { ...att, id: prev[idx].id };
+        updated[idx] = saved;
         return updated;
       } else {
-        return [...prev, { ...att, id: `att-${Date.now()}` }];
+        saved = { ...att, id: `att-${Date.now()}` };
+        return [...prev, saved];
       }
     });
     logAction('SAVE_ATTENDANCE', 'attendance', att.studentId, 'Memperbarui kehadiran siswa');
+    if (saved!) {
+      await dbUpsert('attendances', mapAttendanceToDb(saved!));
+    }
   };
 
-  const bulkSaveAttendance = (items: Omit<StudentAttendance, 'id'>[]) => {
+  const bulkSaveAttendance = async (items: Omit<StudentAttendance, 'id'>[]) => {
+    const preparedList: StudentAttendance[] = [];
     setAttendances(prev => {
       const copy = [...prev];
       items.forEach(item => {
         const idx = copy.findIndex(a => a.studentId === item.studentId && a.semesterId === item.semesterId);
         if (idx >= 0) {
-          copy[idx] = { ...item, id: copy[idx].id };
+          const updated = { ...item, id: copy[idx].id };
+          copy[idx] = updated;
+          preparedList.push(updated);
         } else {
-          copy.push({ ...item, id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 6)}` });
+          const updated = { ...item, id: `att-${Date.now()}-${Math.random().toString(36).substring(2, 6)}` };
+          copy.push(updated);
+          preparedList.push(updated);
         }
       });
       return copy;
     });
     logAction('BULK_SAVE_ATTENDANCE', 'attendance', 'bulk', `Menyimpan kehadiran untuk ${items.length} siswa`);
+
+    const client = getSupabaseClient();
+    if (client && preparedList.length > 0) {
+      const rows = preparedList.map(mapAttendanceToDb);
+      await client.from('attendances').upsert(rows);
+    }
   };
 
-  const saveHomeroomNote = (note: Omit<HomeroomNote, 'id'>) => {
+  const saveHomeroomNote = async (note: Omit<HomeroomNote, 'id'>) => {
+    let saved: HomeroomNote;
     setHomeroomNotes(prev => {
       const idx = prev.findIndex(n => n.studentId === note.studentId && n.semesterId === note.semesterId);
       if (idx >= 0) {
         const updated = [...prev];
-        updated[idx] = { ...note, id: prev[idx].id };
+        saved = { ...note, id: prev[idx].id };
+        updated[idx] = saved;
         return updated;
       } else {
-        return [...prev, { ...note, id: `hn-${Date.now()}` }];
+        saved = { ...note, id: `hn-${Date.now()}` };
+        return [...prev, saved];
       }
     });
     logAction('SAVE_HOMEROOM_NOTE', 'homeroom_note', note.studentId, 'Menyimpan catatan wali kelas');
+    if (saved!) {
+      await dbUpsert('homeroom_notes', mapHomeroomNoteToDb(saved!));
+    }
   };
 
-  const addAchievement = (ach: Omit<StudentAchievement, 'id'>) => {
+  const addAchievement = async (ach: Omit<StudentAchievement, 'id'>) => {
     const newAch: StudentAchievement = { ...ach, id: `ach-${Date.now()}` };
     setAchievements(prev => [...prev, newAch]);
     logAction('ADD_ACHIEVEMENT', 'achievement', newAch.id, `Menambahkan prestasi siswa: ${newAch.achievementName}`);
+    await dbUpsert('student_achievements', mapAchievementToDb(newAch));
   };
 
-  const updateAchievement = (id: string, ach: Partial<StudentAchievement>) => {
-    setAchievements(prev => prev.map(a => a.id === id ? { ...a, ...ach } : a));
+  const updateAchievement = async (id: string, ach: Partial<StudentAchievement>) => {
+    let updatedAch: StudentAchievement | undefined;
+    setAchievements(prev => prev.map(a => {
+      if (a.id === id) {
+        updatedAch = { ...a, ...ach };
+        return updatedAch;
+      }
+      return a;
+    }));
     logAction('UPDATE_ACHIEVEMENT', 'achievement', id, `Memperbarui prestasi ${id}`);
+    if (updatedAch) {
+      await dbUpsert('student_achievements', mapAchievementToDb(updatedAch));
+    }
   };
 
-  const deleteAchievement = (id: string) => {
+  const deleteAchievement = async (id: string) => {
     setAchievements(prev => prev.filter(a => a.id !== id));
     logAction('DELETE_ACHIEVEMENT', 'achievement', id, `Menghapus prestasi ${id}`);
+    await dbDelete('student_achievements', id);
   };
 
   const updateFinalizationStatus = (classId: string, status: ReportFinalization['status'], reason?: string) => {
@@ -825,7 +1278,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAchievements(INITIAL_ACHIEVEMENTS);
     setReportFinalizations(INITIAL_REPORT_FINALIZATIONS);
     setAuditLogs(INITIAL_AUDIT_LOGS);
-    logAction('RESET_SYSTEM', 'system', 'all', 'Mengembalikan seluruh data ke pengaturan awal (pabrik/demo)');
+    logAction('RESET_SYSTEM', 'system', 'all', 'Mengembalikan seluruh data ke pengaturan awal');
   };
 
   return (
@@ -833,6 +1286,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       value={{
         isDarkMode,
         toggleDarkMode,
+        supabaseSyncStatus,
+        refetchFromSupabase,
         currentUser,
         switchUserRole,
         setCurrentUser,

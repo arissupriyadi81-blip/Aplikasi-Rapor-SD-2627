@@ -57,10 +57,13 @@ export const SupabaseIntegrationModal: React.FC<SupabaseIntegrationModalProps> =
     cocurricularActivities,
     cocurricularRubrics,
     cocurricularAssessments,
+    supabaseSyncStatus,
+    refetchFromSupabase,
   } = useApp();
 
-  const [activeTab, setActiveTab] = useState<'query' | 'connection' | 'guide'>('query');
+  const [activeTab, setActiveTab] = useState<'query' | 'connection' | 'guide'>('connection');
   const [copied, setCopied] = useState(false);
+  const [copiedGrant, setCopiedGrant] = useState(false);
   const [sqlContent, setSqlContent] = useState<string>('');
   const [isLoadingSql, setIsLoadingSql] = useState<boolean>(true);
 
@@ -388,45 +391,83 @@ export const SupabaseIntegrationModal: React.FC<SupabaseIntegrationModalProps> =
                 </div>
               </div>
 
-              {/* Sinkronisasi Data Lokal ke Cloud */}
-              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5 shadow-sm dark:border-emerald-800 dark:bg-emerald-950/20 space-y-3">
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h4 className="text-sm font-bold text-emerald-900 dark:text-emerald-200 flex items-center gap-2">
-                      <UploadCloud className="h-5 w-5 text-emerald-600" />
-                      Sinkronkan Data Aplikasi ke Supabase
-                    </h4>
-                    <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 mt-1">
-                      Kirim seluruh data lokal (profil sekolah, rombel kelas, siswa, guru, ekstrakurikuler, dan nilai) yang ada di aplikasi saat ini langsung ke tabel-tabel Supabase Anda.
+              {/* Status Supabase Realtime & Multi-Browser */}
+              <div className="rounded-2xl border border-emerald-300 bg-emerald-50/70 p-5 shadow-sm dark:border-emerald-800 dark:bg-emerald-950/40 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2.5 w-2.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                      </span>
+                      <h4 className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
+                        Penyimpanan Langsung Supabase & Realtime Aktif
+                      </h4>
+                    </div>
+                    <p className="text-xs text-emerald-800/90 dark:text-emerald-300/90">
+                      Setiap perubahan data (tambah, edit, dan hapus siswa, guru, kelas, mapel, nilai, dll) langsung tersimpan permanen di Supabase dan disiarkan secara <strong>real-time</strong> ke semua pengguna di browser lain tanpa perlu refresh.
                     </p>
                   </div>
 
                   <button
-                    onClick={handleSyncData}
-                    disabled={isSyncing || !supabaseUrl || !supabaseAnonKey}
-                    className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700 disabled:opacity-50 transition-all shrink-0"
+                    onClick={async () => {
+                      await refetchFromSupabase();
+                    }}
+                    className="flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-all shadow-sm shrink-0"
+                    title="Muat ulang seluruh data terbaru dari Supabase"
                   >
-                    <RefreshCw className={`h-4 w-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                    <span>{isSyncing ? syncProgress || 'Menyinkronkan...' : 'Sinkronkan Data Sekarang'}</span>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    <span>Tarik Data Terbaru</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Box Perintah SQL Izin Akses & Realtime */}
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/50 p-5 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/20 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                      Aktifkan Izin Akses (GRANT) & Realtime di Supabase
+                    </h4>
+                    <p className="text-xs text-amber-800/80 dark:text-amber-300/80 mt-1">
+                      Agar seluruh tabel (penilaian, presensi, catatan wali, kokurikuler) dapat diakses dan disiarkan real-time, jalankan perintah berikut di <strong>SQL Editor Supabase</strong>:
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      const grantSql = `-- Memberikan izin akses penuh ke schema public
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated;
+
+-- Mengaktifkan Supabase Realtime untuk seluruh tabel
+ALTER PUBLICATION supabase_realtime ADD TABLE 
+    school_profiles, academic_years, semesters, teachers, classes, 
+    subjects, students, assessments, cocurricular_activities, 
+    cocurricular_rubrics, cocurricular_assessments, extracurriculars, 
+    extracurricular_members, attendances, homeroom_notes, 
+    student_achievements, audit_logs;`;
+                      navigator.clipboard.writeText(grantSql);
+                      setCopiedGrant(true);
+                      setTimeout(() => setCopiedGrant(false), 2500);
+                    }}
+                    className="flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700 transition-all shrink-0 shadow-sm"
+                  >
+                    {copiedGrant ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                    <span>{copiedGrant ? 'Perintah Disalin!' : 'Salin Perintah GRANT & Realtime'}</span>
                   </button>
                 </div>
 
-                {/* Progress / Result Log */}
-                {syncResult && (
-                  <div className="mt-3 rounded-xl border border-emerald-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900 space-y-2">
-                    <div className="flex items-center gap-2 text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                      <span>{syncResult.message}</span>
-                    </div>
-                    {syncResult.details.length > 0 && (
-                      <ul className="text-[11px] text-slate-600 dark:text-slate-400 space-y-1 list-disc list-inside">
-                        {syncResult.details.map((item, idx) => (
-                          <li key={idx}>{item}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
+                <div className="rounded-xl bg-slate-950 p-3 font-mono text-[11px] text-amber-400 overflow-x-auto max-h-24">
+                  GRANT USAGE ON SCHEMA public TO anon, authenticated;<br />
+                  GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;<br />
+                  ALTER PUBLICATION supabase_realtime ADD TABLE school_profiles, academic_years, semesters, teachers, classes, subjects, students, assessments, cocurricular_activities, cocurricular_rubrics, cocurricular_assessments, extracurriculars, extracurricular_members, attendances, homeroom_notes, student_achievements, audit_logs;
+                </div>
               </div>
             </div>
           )}

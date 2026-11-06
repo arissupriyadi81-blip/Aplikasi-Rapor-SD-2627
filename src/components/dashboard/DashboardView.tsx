@@ -51,6 +51,7 @@ interface DashboardViewProps {
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenPrintModal,
+  onOpenDbModal,
 }) => {
   const {
     schoolProfile,
@@ -67,6 +68,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     setCurrentView,
     currentUser,
     isDarkMode,
+    supabaseSyncStatus,
   } = useApp();
 
   // Active metrics calculations
@@ -163,9 +165,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-800 via-teal-800 to-cyan-900 p-6 text-white shadow-lg">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-md">
-              <Sparkles className="h-3.5 w-3.5 text-amber-300" />
-              Sistem Informasi Rapor Digital Kurikulum Merdeka
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold backdrop-blur-md">
+                <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                Sistem Informasi Rapor Digital Kurikulum Merdeka
+              </div>
+              <button
+                onClick={onOpenDbModal}
+                className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/25 border border-emerald-300/40 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md hover:bg-emerald-500/40 transition-colors shadow-sm"
+                title="Status Supabase: Terhubung & Realtime Aktif. Klik untuk melihat detail & query SQL"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+                </span>
+                <span>Supabase Realtime Terhubung</span>
+              </button>
             </div>
             <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">
               Selamat Datang, {currentUser.fullName}

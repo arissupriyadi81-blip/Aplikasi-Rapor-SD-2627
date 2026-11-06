@@ -372,6 +372,34 @@ CREATE POLICY "Public full access for homeroom_notes" ON homeroom_notes FOR ALL 
 CREATE POLICY "Public full access for student_achievements" ON student_achievements FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Public full access for audit_logs" ON audit_logs FOR ALL USING (true) WITH CHECK (true);
 
+-- Memberikan hak akses penuh (GRANT) ke role anon dan authenticated (PostgreSQL 15+)
+GRANT USAGE ON SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated;
+
+-- Mengaktifkan Supabase Realtime untuk seluruh tabel agar sinkron antar-browser otomatis
+ALTER PUBLICATION supabase_realtime ADD TABLE 
+    school_profiles,
+    academic_years,
+    semesters,
+    teachers,
+    classes,
+    subjects,
+    students,
+    assessments,
+    cocurricular_activities,
+    cocurricular_rubrics,
+    cocurricular_assessments,
+    extracurriculars,
+    extracurricular_members,
+    attendances,
+    homeroom_notes,
+    student_achievements,
+    audit_logs;
+
 -- ==============================================================================
 -- 16. DATA AWAL (SEEDING RESMI SD IAS AL-JANNAH)
 -- ==============================================================================

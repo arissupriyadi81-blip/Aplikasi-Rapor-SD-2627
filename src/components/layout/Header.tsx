@@ -105,14 +105,18 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onOpenDbModal }
           </select>
         </div>
 
-        {/* Database & PHP Export Button */}
+        {/* Supabase Cloud & Realtime Status Button */}
         <button
           onClick={onOpenDbModal}
-          title="Ekspor database.sql dan Kode Backend PHP XAMPP"
-          className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300 dark:hover:bg-emerald-900/50"
+          title="Database Supabase Terhubung - Sinkronisasi Realtime Aktif Antar-Browser"
+          className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60 shadow-sm"
         >
-          <Database className="h-3.5 w-3.5" />
-          <span className="hidden lg:inline">SQL & PHP Native</span>
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+          </span>
+          <Database className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+          <span className="hidden sm:inline font-bold">Supabase Realtime</span>
         </button>
 
         {/* Administrator Badge (Mode Admin Bersama) */}
