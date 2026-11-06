@@ -16,7 +16,7 @@ export interface SupabaseConfig {
  * Mendapatkan konfigurasi Supabase saat ini (dari localStorage atau env vars)
  */
 export const getSupabaseConfig = (): SupabaseConfig => {
-  const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://wexcmfzhtfhdfpqlsyac.supabase.co/rest/v1/';
+  const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://wexcmfzhtfhdfpqlsyac.supabase.co';
   const envKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndleGNtZnpodGZoZGZwcWxzeWFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM4NDMxMjcsImV4cCI6MjEwOTQxOTEyN30.i9jE10ASgxsVtRY-0GIYV-1lU7iFEilyPMO69faPsrY';
 
   try {
