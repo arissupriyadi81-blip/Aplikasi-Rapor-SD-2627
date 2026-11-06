@@ -116,13 +116,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       ],
     },
     {
-      title: 'SISTEM & EKSPOR',
+      title: 'DATABASE & INTEGRASI',
       items: [
         {
           id: 'export-db',
-          label: 'Unduh SQL & PHP Bundle',
+          label: 'Integrasi Database Supabase',
           icon: Database,
           allowedRoles: ['admin', 'kepala_sekolah', 'guru_mapel', 'wali_kelas'],
+          badge: 'PostgreSQL',
           action: onOpenDbModal,
         },
       ],

@@ -25,7 +25,7 @@ import { HomeroomNotesView } from './components/administration/HomeroomNotesView
 import { AchievementsView } from './components/administration/AchievementsView.tsx';
 import { LegerRankingView } from './components/reports/LegerRankingView.tsx';
 import { PrintReportModal } from './components/reports/PrintReportModal.tsx';
-import { DatabaseExportModal } from './components/system/DatabaseExportModal.tsx';
+import { SupabaseIntegrationModal } from './components/system/SupabaseIntegrationModal.tsx';
 
 const AppContent: React.FC = () => {
   const { currentView } = useApp();
@@ -114,7 +114,7 @@ const AppContent: React.FC = () => {
         onClose={() => setPrintModalOpen(false)}
       />
 
-      <DatabaseExportModal
+      <SupabaseIntegrationModal
         isOpen={dbModalOpen}
         onClose={() => setDbModalOpen(false)}
       />
