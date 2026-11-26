@@ -52,9 +52,15 @@ export const ExtracurricularView: React.FC = () => {
   }
 
   const [studentRows, setStudentRows] = useState<Record<string, StudentEkskulEntry[]>>({});
+  const [isDirty, setIsDirty] = useState(false);
+
+  useEffect(() => {
+    setIsDirty(false);
+  }, [selectedClassId, activeSemester.id]);
 
   // Sync from central store whenever class, semester, or members change
   useEffect(() => {
+    if (isDirty) return;
     const defaultWajibEkskul = extracurriculars.find(e => e.category === 'wajib') || extracurriculars[0];
     const defaultPilihanEkskul = extracurriculars.find(e => e.category === 'pilihan') || extracurriculars[1] || extracurriculars[0];
 
@@ -84,7 +90,7 @@ export const ExtracurricularView: React.FC = () => {
     });
 
     setStudentRows(initialMap);
-  }, [selectedClassId, activeSemester.id, extracurriculars.length, extracurricularMembers, students]);
+  }, [selectedClassId, activeSemester.id, extracurriculars.length, extracurricularMembers, students, isDirty]);
 
   // Handle changing selected ekskul for a student
   const handleChangeEkskul = (studentId: string, entryIndex: number, newEkskulId: string) => {
@@ -98,6 +104,7 @@ export const ExtracurricularView: React.FC = () => {
     };
 
     setStudentRows(prev => ({ ...prev, [studentId]: currentList }));
+    setIsDirty(true);
   };
 
   // Handle predicate change
@@ -123,6 +130,7 @@ export const ExtracurricularView: React.FC = () => {
     };
 
     setStudentRows(prev => ({ ...prev, [studentId]: currentList }));
+    setIsDirty(true);
   };
 
   // Handle description change
@@ -133,6 +141,7 @@ export const ExtracurricularView: React.FC = () => {
       description,
     };
     setStudentRows(prev => ({ ...prev, [studentId]: currentList }));
+    setIsDirty(true);
   };
 
   // Add another ekskul choice for a student (e.g. 1 Wajib + 1 Pilihan)
@@ -153,6 +162,7 @@ export const ExtracurricularView: React.FC = () => {
       ...prev,
       [studentId]: [...currentList, newEntry],
     }));
+    setIsDirty(true);
   };
 
   // Remove one ekskul choice for a student
@@ -164,6 +174,7 @@ export const ExtracurricularView: React.FC = () => {
     }
     const updated = currentList.filter((_, idx) => idx !== entryIndex);
     setStudentRows(prev => ({ ...prev, [studentId]: updated }));
+    setIsDirty(true);
   };
 
   // Save single student's ekskul records
@@ -207,6 +218,7 @@ export const ExtracurricularView: React.FC = () => {
     });
 
     bulkSaveExtracurricularMembers(allMembers);
+    setIsDirty(false);
     setSuccessMessage(`Berhasil menyimpan ${allMembers.length} entri nilai ekskul seluruh siswa kelas!`);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);

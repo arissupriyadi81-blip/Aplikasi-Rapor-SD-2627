@@ -5,22 +5,49 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext.tsx';
-import { Building2, Save, CheckCircle2, Calendar, MapPin, Phone, Mail, Globe, UserCheck, Image as ImageIcon } from 'lucide-react';
+import { SchoolProfile } from '../../types/index.ts';
+import { Building2, Save, CheckCircle2, AlertCircle, RotateCcw, Calendar, MapPin, Phone, Mail, Globe, UserCheck, Image as ImageIcon } from 'lucide-react';
 
 export const SchoolProfileView: React.FC = () => {
   const { schoolProfile, updateSchoolProfile, currentUser } = useApp();
-  const [formData, setFormData] = useState({ ...schoolProfile });
+  const [formData, setFormData] = useState<SchoolProfile>({ ...schoolProfile });
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
-    setFormData({ ...schoolProfile });
-  }, [schoolProfile]);
+    if (!isDirty) {
+      setFormData({ ...schoolProfile });
+    }
+  }, [schoolProfile, isDirty]);
 
   const canEdit = currentUser.role === 'admin';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const updateField = (patch: Partial<SchoolProfile>) => {
+    setFormData(prev => ({ ...prev, ...patch }));
+    setIsDirty(true);
+    setIsSaved(false);
+    setSaveError(null);
+  };
+
+  const handleResetEdits = () => {
+    setFormData({ ...schoolProfile });
+    setIsDirty(false);
+    setSaveError(null);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateSchoolProfile(formData);
+    setIsSaving(true);
+    setSaveError(null);
+    const res = await updateSchoolProfile(formData);
+    setIsSaving(false);
+    if (res && !res.success) {
+      setSaveError(res.error || 'Gagal menyimpan perubahan ke Supabase.');
+      return;
+    }
+    setIsDirty(false);
     setIsSaved(true);
     setTimeout(() => setIsSaved(false), 3000);
   };
@@ -39,12 +66,30 @@ export const SchoolProfileView: React.FC = () => {
           </p>
         </div>
 
-        {isSaved && (
-          <div className="flex items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-            Data profil sekolah berhasil disimpan!
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          {isDirty && (
+            <button
+              type="button"
+              onClick={handleResetEdits}
+              className="flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/60 dark:text-amber-300"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Batalkan Perubahan
+            </button>
+          )}
+          {saveError && (
+            <div className="flex items-center gap-1.5 rounded-lg bg-rose-100 px-3 py-1.5 text-xs font-semibold text-rose-800 dark:bg-rose-950 dark:text-rose-300">
+              <AlertCircle className="h-4 w-4 text-rose-600" />
+              {saveError}
+            </div>
+          )}
+          {isSaved && (
+            <div className="flex items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              Data profil sekolah berhasil disimpan!
+            </div>
+          )}
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -65,7 +110,7 @@ export const SchoolProfileView: React.FC = () => {
                   required
                   disabled={!canEdit}
                   value={formData.schoolName}
-                  onChange={(e) => setFormData({ ...formData, schoolName: e.target.value })}
+                  onChange={(e) => updateField({ schoolName: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
@@ -79,7 +124,7 @@ export const SchoolProfileView: React.FC = () => {
                   required
                   disabled={!canEdit}
                   value={formData.npsn}
-                  onChange={(e) => setFormData({ ...formData, npsn: e.target.value })}
+                  onChange={(e) => updateField({ npsn: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
@@ -92,7 +137,7 @@ export const SchoolProfileView: React.FC = () => {
                   type="text"
                   disabled={!canEdit}
                   value={formData.nss}
-                  onChange={(e) => setFormData({ ...formData, nss: e.target.value })}
+                  onChange={(e) => updateField({ nss: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
@@ -105,7 +150,7 @@ export const SchoolProfileView: React.FC = () => {
                   type="text"
                   disabled={!canEdit}
                   value={formData.foundationName}
-                  onChange={(e) => setFormData({ ...formData, foundationName: e.target.value })}
+                  onChange={(e) => updateField({ foundationName: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
@@ -119,7 +164,7 @@ export const SchoolProfileView: React.FC = () => {
                   required
                   disabled={!canEdit}
                   value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  onChange={(e) => updateField({ address: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
@@ -132,7 +177,7 @@ export const SchoolProfileView: React.FC = () => {
                   type="text"
                   disabled={!canEdit}
                   value={formData.village}
-                  onChange={(e) => setFormData({ ...formData, village: e.target.value })}
+                  onChange={(e) => updateField({ village: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
@@ -145,7 +190,7 @@ export const SchoolProfileView: React.FC = () => {
                   type="text"
                   disabled={!canEdit}
                   value={formData.district}
-                  onChange={(e) => setFormData({ ...formData, district: e.target.value })}
+                  onChange={(e) => updateField({ district: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
@@ -158,7 +203,7 @@ export const SchoolProfileView: React.FC = () => {
                   type="text"
                   disabled={!canEdit}
                   value={formData.regency}
-                  onChange={(e) => setFormData({ ...formData, regency: e.target.value })}
+                  onChange={(e) => updateField({ regency: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
@@ -171,7 +216,7 @@ export const SchoolProfileView: React.FC = () => {
                   type="text"
                   disabled={!canEdit}
                   value={formData.province}
-                  onChange={(e) => setFormData({ ...formData, province: e.target.value })}
+                  onChange={(e) => updateField({ province: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
@@ -195,7 +240,7 @@ export const SchoolProfileView: React.FC = () => {
                     type="text"
                     disabled={!canEdit}
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => updateField({ phone: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
                 </div>
@@ -211,7 +256,7 @@ export const SchoolProfileView: React.FC = () => {
                     type="email"
                     disabled={!canEdit}
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => updateField({ email: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
                 </div>
@@ -227,7 +272,7 @@ export const SchoolProfileView: React.FC = () => {
                     type="text"
                     disabled={!canEdit}
                     value={formData.website}
-                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                    onChange={(e) => updateField({ website: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                   />
                 </div>
@@ -262,7 +307,7 @@ export const SchoolProfileView: React.FC = () => {
                   <div className="flex items-center gap-2 pt-1">
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, logoUrl: '/logo-aljannah-emblem.png' })}
+                      onClick={() => updateField({ logoUrl: '/logo-aljannah-emblem.png' })}
                       className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 underline"
                     >
                       Logo Emblem
@@ -270,7 +315,7 @@ export const SchoolProfileView: React.FC = () => {
                     <span className="text-slate-300 dark:text-slate-600">•</span>
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, logoUrl: '/logo-aljannah.png' })}
+                      onClick={() => updateField({ logoUrl: '/logo-aljannah.png' })}
                       className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 dark:text-emerald-400 underline"
                     >
                       Logo Lengkap
@@ -296,7 +341,7 @@ export const SchoolProfileView: React.FC = () => {
                   required
                   disabled={!canEdit}
                   value={formData.headmasterName}
-                  onChange={(e) => setFormData({ ...formData, headmasterName: e.target.value })}
+                  onChange={(e) => updateField({ headmasterName: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
@@ -310,7 +355,7 @@ export const SchoolProfileView: React.FC = () => {
                 type="text"
                 disabled={!canEdit}
                 value={formData.headmasterNip}
-                onChange={(e) => setFormData({ ...formData, headmasterNip: e.target.value })}
+                onChange={(e) => updateField({ headmasterNip: e.target.value })}
                 placeholder="Kosongkan jika bukan ASN / GTY"
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
@@ -326,7 +371,7 @@ export const SchoolProfileView: React.FC = () => {
                   type="text"
                   disabled={!canEdit}
                   value={formData.reportPlace}
-                  onChange={(e) => setFormData({ ...formData, reportPlace: e.target.value })}
+                  onChange={(e) => updateField({ reportPlace: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
@@ -343,7 +388,7 @@ export const SchoolProfileView: React.FC = () => {
                   required
                   disabled={!canEdit}
                   value={formData.reportDateSem1 || formData.reportDate || '2026-12-19'}
-                  onChange={(e) => setFormData({ ...formData, reportDateSem1: e.target.value, reportDate: e.target.value })}
+                  onChange={(e) => updateField({ reportDateSem1: e.target.value, reportDate: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
@@ -361,7 +406,7 @@ export const SchoolProfileView: React.FC = () => {
                   required
                   disabled={!canEdit}
                   value={formData.reportDateSem2 || '2027-06-25'}
-                  onChange={(e) => setFormData({ ...formData, reportDateSem2: e.target.value })}
+                  onChange={(e) => updateField({ reportDateSem2: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 pl-9 pr-3 py-2 text-xs font-medium text-slate-800 focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
                 />
               </div>
@@ -371,10 +416,11 @@ export const SchoolProfileView: React.FC = () => {
             {canEdit && (
               <button
                 type="submit"
-                className="w-full mt-4 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition-all"
+                disabled={isSaving}
+                className="w-full mt-4 flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-bold text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700 disabled:opacity-60 transition-all"
               >
                 <Save className="h-4 w-4" />
-                Simpan Perubahan Profil
+                {isSaving ? 'Menyimpan...' : 'Simpan Perubahan Profil'}
               </button>
             )}
 

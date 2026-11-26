@@ -163,25 +163,29 @@ export const testSupabaseConnection = async (
 // MAPPERS: CONVERT BETWEEN POSTGRESQL (snake_case) & TYPESCRIPT (camelCase)
 // ==============================================================================
 
+export const hasDataChanged = <T,>(prev: T, next: T): boolean => {
+  return JSON.stringify(prev) !== JSON.stringify(next);
+};
+
 export const mapSchoolProfileFromDb = (row: any): SchoolProfile => ({
   id: row.id || 'sch-1',
-  schoolName: row.school_name || 'SD IAS Al-Jannah (Islamic, Nature & Science School)',
+  schoolName: row.school_name ?? 'SD IAS Al-Jannah (Islamic, Nature & Science School)',
   npsn: row.npsn ?? '-',
   nss: row.nss ?? '-',
-  foundationName: row.foundation_name || 'Yayasan Al-Jannah Pondok Ranggon',
-  address: row.address || 'Jl. Jambore No. 4, Harjamukti, Pondok Ranggon',
-  village: row.village || 'Harjamukti',
-  district: row.district || 'Cimanggis',
-  regency: row.regency || 'Depok - Jakarta Timur',
-  province: row.province || 'Jawa Barat',
-  postalCode: row.postal_code || '16454',
-  phone: row.phone || '(021) 8774-1234',
-  email: row.email || 'info@sekolah-aljannah.sch.id',
-  website: row.website || 'https://sekolah-aljannah.sch.id',
+  foundationName: row.foundation_name ?? 'Yayasan Al-Jannah Pondok Ranggon',
+  address: row.address ?? 'Jl. Jambore No. 4, Harjamukti, Pondok Ranggon',
+  village: row.village ?? 'Harjamukti',
+  district: row.district ?? 'Cimanggis',
+  regency: row.regency ?? 'Depok - Jakarta Timur',
+  province: row.province ?? 'Jawa Barat',
+  postalCode: row.postal_code ?? '16454',
+  phone: row.phone ?? '(021) 8774-1234',
+  email: row.email ?? 'info@sekolah-aljannah.sch.id',
+  website: row.website ?? 'https://sekolah-aljannah.sch.id',
   logoUrl: row.logo_url || '/logo-aljannah-emblem.png',
-  headmasterName: row.headmaster_name || 'Siti Sriyati, S.Ag',
+  headmasterName: row.headmaster_name ?? 'Siti Sriyati, S.Ag',
   headmasterNip: row.headmaster_nip ?? '',
-  reportPlace: row.report_place || 'Depok',
+  reportPlace: row.report_place ?? 'Depok',
   reportDateSem1: row.report_date_sem1 || '2026-12-19',
   reportDateSem2: row.report_date_sem2 || '2027-06-25',
   reportDate: row.report_date || row.report_date_sem1 || '2026-12-19',

@@ -32,8 +32,14 @@ export const AttendanceView: React.FC = () => {
   }
 
   const [rows, setRows] = useState<AttendanceRow[]>([]);
+  const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
+    setIsDirty(false);
+  }, [selectedClassId, activeSemester.id]);
+
+  useEffect(() => {
+    if (isDirty) return;
     const list: AttendanceRow[] = classStudents.map(s => {
       const existing = attendances.find(a => a.studentId === s.id && a.semesterId === activeSemester.id);
       return {
@@ -46,7 +52,7 @@ export const AttendanceView: React.FC = () => {
       };
     });
     setRows(list);
-  }, [selectedClassId, activeSemester.id, attendances, students]);
+  }, [selectedClassId, activeSemester.id, attendances, students, isDirty]);
 
   const handleChange = (idx: number, field: 'sakit' | 'izin' | 'alpa' | 'notes', val: any) => {
     const updated = [...rows];
@@ -57,6 +63,7 @@ export const AttendanceView: React.FC = () => {
       updated[idx][field] = isNaN(num) ? 0 : Math.max(0, num);
     }
     setRows(updated);
+    setIsDirty(true);
   };
 
   const handleSaveAll = () => {
@@ -82,6 +89,7 @@ export const AttendanceView: React.FC = () => {
       }))
     );
 
+    setIsDirty(false);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2500);
   };

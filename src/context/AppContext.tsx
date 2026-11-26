@@ -58,6 +58,7 @@ import {
   getSupabaseClient,
   fetchAllDataFromSupabase,
   subscribeToAllChanges,
+  hasDataChanged,
   dbUpsert,
   dbDelete,
   mapSchoolProfileToDb,
@@ -130,7 +131,7 @@ interface AppContextType {
 
   // School Profile
   schoolProfile: SchoolProfile;
-  updateSchoolProfile: (profile: Partial<SchoolProfile>) => Promise<void>;
+  updateSchoolProfile: (profile: Partial<SchoolProfile>) => Promise<{ success: boolean; error?: string }>;
 
   // Teachers
   teachers: Teacher[];
@@ -509,72 +510,72 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
       hasHydratedSupabaseRef.current = true;
 
-      if (data.schoolProfile) {
+      if (data.schoolProfile && hasDataChanged(schoolProfileRef.current, data.schoolProfile)) {
         schoolProfileRef.current = data.schoolProfile;
         setSchoolProfile(data.schoolProfile);
       }
-      if (data.academicYears) {
+      if (data.academicYears && hasDataChanged(academicYearsRef.current, data.academicYears)) {
         academicYearsRef.current = data.academicYears;
         setAcademicYears(data.academicYears);
       }
-      if (data.semesters) {
+      if (data.semesters && hasDataChanged(semestersRef.current, data.semesters)) {
         semestersRef.current = data.semesters;
         setSemesters(data.semesters);
       }
-      if (data.teachers !== undefined) {
+      if (data.teachers !== undefined && hasDataChanged(teachersRef.current, data.teachers)) {
         teachersRef.current = data.teachers;
         setTeachers(data.teachers);
       }
-      if (data.classes !== undefined) {
+      if (data.classes !== undefined && hasDataChanged(classesRef.current, data.classes)) {
         classesRef.current = data.classes;
         setClasses(data.classes);
       }
-      if (data.subjects !== undefined) {
+      if (data.subjects !== undefined && hasDataChanged(subjectsRef.current, data.subjects)) {
         subjectsRef.current = data.subjects;
         setSubjects(data.subjects);
       }
-      if (data.students !== undefined) {
+      if (data.students !== undefined && hasDataChanged(studentsRef.current, data.students)) {
         studentsRef.current = data.students;
         setStudents(data.students);
       }
-      if (data.extracurriculars !== undefined) {
+      if (data.extracurriculars !== undefined && hasDataChanged(extracurricularsRef.current, data.extracurriculars)) {
         extracurricularsRef.current = data.extracurriculars;
         setExtracurriculars(data.extracurriculars);
       }
-      if (data.extracurricularMembers !== undefined) {
+      if (data.extracurricularMembers !== undefined && hasDataChanged(extracurricularMembersRef.current, data.extracurricularMembers)) {
         extracurricularMembersRef.current = data.extracurricularMembers;
         setExtracurricularMembers(data.extracurricularMembers);
       }
-      if (data.assessments !== undefined) {
+      if (data.assessments !== undefined && hasDataChanged(assessmentsRef.current, data.assessments)) {
         assessmentsRef.current = data.assessments;
         setAssessments(data.assessments);
       }
-      if (data.attendances !== undefined) {
+      if (data.attendances !== undefined && hasDataChanged(attendancesRef.current, data.attendances)) {
         attendancesRef.current = data.attendances;
         setAttendances(data.attendances);
       }
-      if (data.homeroomNotes !== undefined) {
+      if (data.homeroomNotes !== undefined && hasDataChanged(homeroomNotesRef.current, data.homeroomNotes)) {
         homeroomNotesRef.current = data.homeroomNotes;
         setHomeroomNotes(data.homeroomNotes);
       }
-      if (data.achievements !== undefined) {
+      if (data.achievements !== undefined && hasDataChanged(achievementsRef.current, data.achievements)) {
         achievementsRef.current = data.achievements;
         setAchievements(data.achievements);
       }
-      if (data.cocurricularActivities) {
+      if (data.cocurricularActivities && hasDataChanged(cocurricularActivitiesRef.current, data.cocurricularActivities)) {
         cocurricularActivitiesRef.current = data.cocurricularActivities;
         setCocurricularActivities(data.cocurricularActivities);
       }
-      if (data.cocurricularRubrics) {
+      if (data.cocurricularRubrics && hasDataChanged(cocurricularRubricsRef.current, data.cocurricularRubrics)) {
         cocurricularRubricsRef.current = data.cocurricularRubrics;
         setCocurricularRubrics(data.cocurricularRubrics);
       }
-      if (data.cocurricularAssessments !== undefined) {
+      if (data.cocurricularAssessments !== undefined && hasDataChanged(cocurricularAssessmentsRef.current, data.cocurricularAssessments)) {
         cocurricularAssessmentsRef.current = data.cocurricularAssessments;
         setCocurricularAssessments(data.cocurricularAssessments);
       }
       if (data.auditLogs) {
-        setAuditLogs(data.auditLogs);
+        setAuditLogs(prev => (hasDataChanged(prev, data.auditLogs!) ? data.auditLogs! : prev));
       }
 
       setSupabaseSyncStatus(prev => ({
@@ -782,13 +783,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // DIRECT CRUD OPERATIONS (SYNCHRONOUS REF COMPUTATION + SUPABASE PERSISTENCE)
   // ==============================================================================
 
-  const updateSchoolProfile = async (profile: Partial<SchoolProfile>) => {
+  const updateSchoolProfile = async (profile: Partial<SchoolProfile>): Promise<{ success: boolean; error?: string }> => {
     const updated = { ...schoolProfileRef.current, ...profile };
     schoolProfileRef.current = updated;
     setSchoolProfile(updated);
     logAction('UPDATE_SCHOOL_PROFILE', 'school_profile', updated.id, 'Memperbarui data profil sekolah');
     const res = await dbUpsert('school_profiles', mapSchoolProfileToDb(updated));
     reportWriteResult(res);
+    return res;
   };
 
   const addTeacher = async (teacher: Omit<Teacher, 'id'>) => {

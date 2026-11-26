@@ -76,9 +76,15 @@ export const AssessmentInputView: React.FC = () => {
   }
 
   const [tableRows, setTableRows] = useState<RowState[]>([]);
+  const [isDirty, setIsDirty] = useState(false);
 
-  // Synchronize local table state from assessments store when class/subject changes
   useEffect(() => {
+    setIsDirty(false);
+  }, [selectedClassId, selectedSubjectId, activeSemester.id]);
+
+  // Synchronize local table state from assessments store when class/subject changes or when not actively editing
+  useEffect(() => {
+    if (isDirty) return;
     const rows: RowState[] = classStudents.map(student => {
       const existing = assessments.find(
         a =>
@@ -113,7 +119,7 @@ export const AssessmentInputView: React.FC = () => {
     });
 
     setTableRows(rows);
-  }, [selectedClassId, selectedSubjectId, activeSemester.id, currentTPs.length, assessments, students]);
+  }, [selectedClassId, selectedSubjectId, activeSemester.id, currentTPs.length, assessments, students, isDirty]);
 
   // Handle cell edits and recalculate live
   const handleScoreChange = (
@@ -175,6 +181,7 @@ export const AssessmentInputView: React.FC = () => {
 
     updated[studentIndex] = row;
     setTableRows(updated);
+    setIsDirty(true);
   };
 
   // Quick auto-populate sample scores for demonstration testing
@@ -224,6 +231,7 @@ export const AssessmentInputView: React.FC = () => {
     });
 
     setTableRows(updated);
+    setIsDirty(true);
   };
 
   // Save all row states to central context
@@ -263,6 +271,7 @@ export const AssessmentInputView: React.FC = () => {
     });
 
     bulkSaveAssessments(newAssessments);
+    setIsDirty(false);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
@@ -330,6 +339,7 @@ export const AssessmentInputView: React.FC = () => {
     });
 
     bulkSaveAssessments(newAssessments);
+    setIsDirty(false);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 4000);
   };

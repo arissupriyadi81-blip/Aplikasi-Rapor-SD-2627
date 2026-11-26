@@ -37,8 +37,14 @@ export const HomeroomNotesView: React.FC = () => {
     noteAttitude: '',
     noteRecommendation: '',
   });
+  const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
+    setIsDirty(false);
+  }, [selectedStudentId, activeSemester.id]);
+
+  useEffect(() => {
+    if (isDirty) return;
     if (currentNote) {
       setFormData({
         noteLearning: currentNote.noteLearning || '',
@@ -52,7 +58,7 @@ export const HomeroomNotesView: React.FC = () => {
         noteRecommendation: 'Pertahankan prestasi dan semangat belajarnya, serta terus asah minat bakat ananda.',
       });
     }
-  }, [selectedStudentId, currentNote]);
+  }, [selectedStudentId, currentNote, isDirty]);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,12 +75,14 @@ export const HomeroomNotesView: React.FC = () => {
       status: 'final',
     });
 
+    setIsDirty(false);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2500);
   };
 
   const applyTemplate = (type: 'sangat_baik' | 'berkembang' | 'butuh_motivasi') => {
     const name = activeStudent?.fullName || 'Ananda';
+    setIsDirty(true);
     if (type === 'sangat_baik') {
       setFormData({
         noteLearning: `${name} memiliki daya nalar analitis yang sangat luar biasa di seluruh mata pelajaran, memiliki kemandirian belajar tinggi, dan aktif memimpin kelompok belajar.`,
@@ -215,7 +223,7 @@ export const HomeroomNotesView: React.FC = () => {
                 rows={3}
                 required
                 value={formData.noteLearning}
-                onChange={(e) => setFormData({ ...formData, noteLearning: e.target.value })}
+                onChange={(e) => { setFormData({ ...formData, noteLearning: e.target.value }); setIsDirty(true); }}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>
@@ -228,7 +236,7 @@ export const HomeroomNotesView: React.FC = () => {
                 rows={3}
                 required
                 value={formData.noteAttitude}
-                onChange={(e) => setFormData({ ...formData, noteAttitude: e.target.value })}
+                onChange={(e) => { setFormData({ ...formData, noteAttitude: e.target.value }); setIsDirty(true); }}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>
@@ -241,7 +249,7 @@ export const HomeroomNotesView: React.FC = () => {
                 rows={3}
                 required
                 value={formData.noteRecommendation}
-                onChange={(e) => setFormData({ ...formData, noteRecommendation: e.target.value })}
+                onChange={(e) => { setFormData({ ...formData, noteRecommendation: e.target.value }); setIsDirty(true); }}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed focus:border-emerald-500 focus:bg-white focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
             </div>

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   normalizeSupabaseUrl,
+  hasDataChanged,
   mapStudentFromDb,
   mapStudentToDb,
   mapTeacherFromDb,
@@ -20,6 +21,16 @@ test('normalizeSupabaseUrl strips /rest/v1 and trailing slashes', () => {
   assert.equal(normalizeSupabaseUrl('https://abc.supabase.co/rest/v1'), 'https://abc.supabase.co');
   assert.equal(normalizeSupabaseUrl('  https://abc.supabase.co/// '), 'https://abc.supabase.co');
   assert.equal(normalizeSupabaseUrl(''), '');
+});
+
+test('hasDataChanged returns false for structurally equal clones and true when fields differ', () => {
+  const a = { id: 'sch-1', schoolName: 'SD IAS Al-Jannah', nested: { arr: [1, 2] } };
+  const b = { id: 'sch-1', schoolName: 'SD IAS Al-Jannah', nested: { arr: [1, 2] } };
+  const c = { id: 'sch-1', schoolName: 'SD IAS Al-Jannah Baru', nested: { arr: [1, 2] } };
+  assert.equal(hasDataChanged(a, b), false);
+  assert.equal(hasDataChanged(a, c), true);
+  assert.equal(hasDataChanged([{ id: '1' }], [{ id: '1' }]), false);
+  assert.equal(hasDataChanged([{ id: '1' }], [{ id: '2' }]), true);
 });
 
 test('mapStudentToDb derives current_grade from classes and maps empty currentClassId to null', () => {
@@ -103,12 +114,14 @@ test('mapTeacherFromDb and mapTeacherToDb handle Guru Pendamping and subjects ar
   assert.deepEqual(mapped.assignedSubjectIds, ['sub-1', 'sub-2']);
 });
 
-test('mapSchoolProfileFromDb preserves dash NPSN and Depok regency from Supabase', () => {
+test('mapSchoolProfileFromDb preserves dash NPSN, Depok regency, and intentionally empty strings from Supabase', () => {
   const row = {
     id: 'sch-1',
     school_name: 'SD IAS Al-Jannah (Islamic, Nature & Science School)',
     npsn: '-',
     nss: '-',
+    foundation_name: '',
+    website: '',
     regency: 'Depok',
     headmaster_name: 'Siti Sriyati, S.Ag',
     headmaster_nip: '',
@@ -116,11 +129,15 @@ test('mapSchoolProfileFromDb preserves dash NPSN and Depok regency from Supabase
 
   const profile: SchoolProfile = mapSchoolProfileFromDb(row);
   assert.equal(profile.npsn, '-');
+  assert.equal(profile.foundationName, '');
+  assert.equal(profile.website, '');
   assert.equal(profile.regency, 'Depok');
   assert.equal(profile.headmasterName, 'Siti Sriyati, S.Ag');
 
   const roundTrip = mapSchoolProfileToDb(profile);
   assert.equal(roundTrip.npsn, '-');
+  assert.equal(roundTrip.foundation_name, '');
+  assert.equal(roundTrip.website, '');
   assert.equal(roundTrip.regency, 'Depok');
 });
 
