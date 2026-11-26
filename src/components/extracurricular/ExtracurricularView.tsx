@@ -31,9 +31,15 @@ export const ExtracurricularView: React.FC = () => {
     removeExtracurricularMember,
   } = useApp();
 
-  const [selectedClassId, setSelectedClassId] = useState<string>(classes[4]?.id || classes[0]?.id || '');
+  const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || '');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('Nilai ekstrakurikuler berhasil disimpan!');
+
+  useEffect(() => {
+    if (classes.length > 0 && !classes.some(c => c.id === selectedClassId)) {
+      setSelectedClassId(classes[0].id);
+    }
+  }, [classes, selectedClassId]);
 
   const classStudents = students.filter(s => s.currentClassId === selectedClassId && s.status === 'aktif');
 
@@ -78,7 +84,7 @@ export const ExtracurricularView: React.FC = () => {
     });
 
     setStudentRows(initialMap);
-  }, [selectedClassId, activeSemester.id, extracurriculars.length]);
+  }, [selectedClassId, activeSemester.id, extracurriculars.length, extracurricularMembers, students]);
 
   // Handle changing selected ekskul for a student
   const handleChangeEkskul = (studentId: string, entryIndex: number, newEkskulId: string) => {

@@ -35,10 +35,22 @@ export const AssessmentInputView: React.FC = () => {
     currentUser,
   } = useApp();
 
-  const [selectedClassId, setSelectedClassId] = useState<string>(classes[4]?.id || classes[0]?.id || '');
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>(subjects[4]?.id || subjects[0]?.id || '');
+  const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || '');
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>(subjects[0]?.id || '');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [excelModalOpen, setExcelModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (classes.length > 0 && !classes.some(c => c.id === selectedClassId)) {
+      setSelectedClassId(classes[0].id);
+    }
+  }, [classes, selectedClassId]);
+
+  useEffect(() => {
+    if (subjects.length > 0 && !subjects.some(s => s.id === selectedSubjectId)) {
+      setSelectedSubjectId(subjects[0].id);
+    }
+  }, [subjects, selectedSubjectId]);
 
   // Current class and subject
   const currentClass = classes.find(c => c.id === selectedClassId);
@@ -101,7 +113,7 @@ export const AssessmentInputView: React.FC = () => {
     });
 
     setTableRows(rows);
-  }, [selectedClassId, selectedSubjectId, activeSemester.id, currentTPs.length]);
+  }, [selectedClassId, selectedSubjectId, activeSemester.id, currentTPs.length, assessments, students]);
 
   // Handle cell edits and recalculate live
   const handleScoreChange = (

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext.tsx';
 import { LearningOutcomeCP, LearningObjectiveTP, Phase } from '../../types/index.ts';
 import { Compass, Plus, Edit2, Trash2, X, Filter, BookOpen } from 'lucide-react';
@@ -12,9 +12,15 @@ export const CPTPView: React.FC = () => {
   const { cps, tps, subjects, activeAcademicYear, addCP, updateCP, deleteCP, addTP, updateTP, deleteTP, currentUser } = useApp();
 
   const [selectedPhase, setSelectedPhase] = useState<Phase>('C');
-  const [selectedSubjectId, setSelectedSubjectId] = useState<string>(subjects[4]?.id || subjects[0]?.id || '');
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>(subjects[0]?.id || '');
   const [cpModalOpen, setCpModalOpen] = useState(false);
   const [tpModalOpen, setTpModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (subjects.length > 0 && !subjects.some(s => s.id === selectedSubjectId)) {
+      setSelectedSubjectId(subjects[0].id);
+    }
+  }, [subjects, selectedSubjectId]);
 
   const [editingCP, setEditingCP] = useState<LearningOutcomeCP | null>(null);
   const [editingTP, setEditingTP] = useState<LearningObjectiveTP | null>(null);

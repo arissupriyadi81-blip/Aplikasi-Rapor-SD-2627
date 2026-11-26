@@ -42,7 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenPrintModal,
   onOpenDbModal,
 }) => {
-  const { currentView, setCurrentView, currentUser } = useApp();
+  const { currentView, setCurrentView, currentUser, schoolProfile, supabaseSyncStatus } = useApp();
 
   const role = currentUser.role;
 
@@ -234,17 +234,39 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Footer info in sidebar */}
         <div className="border-t border-slate-200 p-4 dark:border-slate-800">
           <div className="rounded-xl bg-slate-50 p-3 dark:bg-slate-800/60">
-            <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
-              SD IAS Al-Jannah
+            <p className="text-[11px] font-bold text-slate-700 dark:text-slate-200 truncate" title={schoolProfile.schoolName}>
+              {schoolProfile.schoolName}
             </p>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-              NPSN: 20108390 • Kurikulum Merdeka
+              NPSN: {schoolProfile.npsn || '-'} • Kurikulum Merdeka
             </p>
-            <div className="mt-2 flex items-center justify-between text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+            <div className={`mt-2 flex items-center justify-between text-[10px] font-medium ${
+              supabaseSyncStatus.lastError
+                ? 'text-amber-600 dark:text-amber-400'
+                : supabaseSyncStatus.isConnected
+                ? 'text-emerald-600 dark:text-emerald-400'
+                : 'text-slate-500 dark:text-slate-400'
+            }`}>
               <span>Status Sistem</span>
               <span className="flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                Aktif & Terhubung
+                <span className={`h-1.5 w-1.5 rounded-full ${
+                  supabaseSyncStatus.isLoading
+                    ? 'bg-amber-400 animate-pulse'
+                    : supabaseSyncStatus.lastError
+                    ? 'bg-amber-500'
+                    : supabaseSyncStatus.isConnected
+                    ? 'bg-emerald-500'
+                    : 'bg-slate-400'
+                }`}></span>
+                {supabaseSyncStatus.isLoading
+                  ? 'Menyinkronkan...'
+                  : supabaseSyncStatus.lastError
+                  ? 'Kendala Sinkron'
+                  : supabaseSyncStatus.isRealtime
+                  ? 'Realtime Aktif'
+                  : supabaseSyncStatus.isConnected
+                  ? 'Terhubung'
+                  : 'Mode Lokal'}
               </span>
             </div>
           </div>

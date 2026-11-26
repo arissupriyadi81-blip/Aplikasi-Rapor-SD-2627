@@ -79,6 +79,8 @@ export const SupabaseIntegrationModal: React.FC<SupabaseIntegrationModalProps> =
 
   // Sync State
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [isPulling, setIsPulling] = useState<boolean>(false);
+  const [pullFeedback, setPullFeedback] = useState<string | null>(null);
   const [syncProgress, setSyncProgress] = useState<string>('');
   const [syncResult, setSyncResult] = useState<{
     success: boolean;
@@ -392,34 +394,87 @@ export const SupabaseIntegrationModal: React.FC<SupabaseIntegrationModalProps> =
               </div>
 
               {/* Status Supabase Realtime & Multi-Browser */}
-              <div className="rounded-2xl border border-emerald-300 bg-emerald-50/70 p-5 shadow-sm dark:border-emerald-800 dark:bg-emerald-950/40 space-y-3">
+              <div className={`rounded-2xl border p-5 shadow-sm space-y-3 ${
+                supabaseSyncStatus.lastError
+                  ? 'border-amber-300 bg-amber-50/70 dark:border-amber-800 dark:bg-amber-950/40'
+                  : 'border-emerald-300 bg-emerald-50/70 dark:border-emerald-800 dark:bg-emerald-950/40'
+              }`}>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="relative flex h-2.5 w-2.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                        {(supabaseSyncStatus.isRealtime || supabaseSyncStatus.isLoading) && (
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        )}
+                        <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                          supabaseSyncStatus.lastError
+                            ? 'bg-amber-500'
+                            : supabaseSyncStatus.isConnected
+                            ? 'bg-emerald-500'
+                            : 'bg-slate-400'
+                        }`}></span>
                       </span>
                       <h4 className="text-sm font-bold text-emerald-900 dark:text-emerald-200">
-                        Penyimpanan Langsung Supabase & Realtime Aktif
+                        {supabaseSyncStatus.isLoading
+                          ? 'Sedang Menarik Data dari Supabase...'
+                          : supabaseSyncStatus.lastError
+                          ? 'Sinkronisasi Supabase Mengalami Kendala'
+                          : supabaseSyncStatus.isRealtime
+                          ? 'Penyimpanan Langsung Supabase & Realtime Aktif'
+                          : supabaseSyncStatus.isConnected
+                          ? 'Terhubung ke Supabase (Sinkronisasi Periodik Aktif)'
+                          : 'Belum Terhubung ke Supabase'}
                       </h4>
                     </div>
                     <p className="text-xs text-emerald-800/90 dark:text-emerald-300/90">
                       Setiap perubahan data (tambah, edit, dan hapus siswa, guru, kelas, mapel, nilai, dll) langsung tersimpan permanen di Supabase dan disiarkan secara <strong>real-time</strong> ke semua pengguna di browser lain tanpa perlu refresh.
                     </p>
+                    <div className="flex flex-wrap items-center gap-3 pt-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">
+                      <span>
+                        Sinkron terakhir:{' '}
+                        <strong>
+                          {supabaseSyncStatus.lastSync
+                            ? supabaseSyncStatus.lastSync.toLocaleString('id-ID')
+                            : 'Belum ada'}
+                        </strong>
+                      </span>
+                      {supabaseSyncStatus.lastError && (
+                        <span className="text-amber-700 dark:text-amber-300 font-semibold">
+                          Error: {supabaseSyncStatus.lastError}
+                        </span>
+                      )}
+                      {supabaseSyncStatus.pendingPermissions.length > 0 && (
+                        <span className="text-rose-700 dark:text-rose-300 font-semibold">
+                          Tabel butuh GRANT: {supabaseSyncStatus.pendingPermissions.join(', ')}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <button
+                    disabled={isPulling || supabaseSyncStatus.isLoading}
                     onClick={async () => {
+                      handleSaveConfig();
+                      setIsPulling(true);
+                      setPullFeedback(null);
                       await refetchFromSupabase();
+                      setIsPulling(false);
+                      setPullFeedback('Data terbaru berhasil ditarik dari Supabase!');
+                      setTimeout(() => setPullFeedback(null), 3500);
                     }}
-                    className="flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-800 transition-all shadow-sm shrink-0"
+                    className="flex items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 text-xs font-bold text-white hover:bg-emerald-800 disabled:opacity-60 transition-all shadow-sm shrink-0"
                     title="Muat ulang seluruh data terbaru dari Supabase"
                   >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                    <span>Tarik Data Terbaru</span>
+                    <RefreshCw className={`h-3.5 w-3.5 ${(isPulling || supabaseSyncStatus.isLoading) ? 'animate-spin' : ''}`} />
+                    <span>{isPulling ? 'Menarik Data...' : 'Tarik Data Terbaru'}</span>
                   </button>
                 </div>
+                {pullFeedback && (
+                  <div className="flex items-center gap-1.5 rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-900 dark:bg-emerald-900/60 dark:text-emerald-200">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>{pullFeedback}</span>
+                  </div>
+                )}
               </div>
 
               {/* Box Perintah SQL Izin Akses & Realtime */}

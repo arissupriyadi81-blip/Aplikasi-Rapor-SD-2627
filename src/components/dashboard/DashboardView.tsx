@@ -172,14 +172,40 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </div>
               <button
                 onClick={onOpenDbModal}
-                className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/25 border border-emerald-300/40 px-3 py-1 text-xs font-semibold text-white backdrop-blur-md hover:bg-emerald-500/40 transition-colors shadow-sm"
-                title="Status Supabase: Terhubung & Realtime Aktif. Klik untuk melihat detail & query SQL"
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold text-white backdrop-blur-md transition-colors shadow-sm ${
+                  supabaseSyncStatus.lastError
+                    ? 'bg-amber-500/25 border-amber-300/40 hover:bg-amber-500/40'
+                    : 'bg-emerald-500/25 border-emerald-300/40 hover:bg-emerald-500/40'
+                }`}
+                title={
+                  supabaseSyncStatus.lastError
+                    ? `Kendala koneksi: ${supabaseSyncStatus.lastError}`
+                    : 'Klik untuk melihat detail integrasi & sinkronisasi Supabase'
+                }
               >
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+                  {(supabaseSyncStatus.isRealtime || supabaseSyncStatus.isLoading) && (
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
+                  )}
+                  <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                    supabaseSyncStatus.lastError
+                      ? 'bg-amber-400'
+                      : supabaseSyncStatus.isConnected
+                      ? 'bg-emerald-400'
+                      : 'bg-slate-300'
+                  }`}></span>
                 </span>
-                <span>Supabase Realtime Terhubung</span>
+                <span>
+                  {supabaseSyncStatus.isLoading
+                    ? 'Menyinkronkan Supabase...'
+                    : supabaseSyncStatus.lastError
+                    ? 'Perlu Cek Koneksi Supabase'
+                    : supabaseSyncStatus.isRealtime
+                    ? 'Supabase Realtime Terhubung'
+                    : supabaseSyncStatus.isConnected
+                    ? 'Supabase Terhubung'
+                    : 'Mode Penyimpanan Lokal'}
+                </span>
               </button>
             </div>
             <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">

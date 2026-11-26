@@ -31,20 +31,30 @@ export interface SupabaseConfig {
   anonKey: string;
 }
 
+export const normalizeSupabaseUrl = (rawUrl: string): string => {
+  const trimmed = (rawUrl || '').trim();
+  if (!trimmed) return '';
+  return trimmed
+    .replace(/\/rest\/v1\/?$/i, '')
+    .replace(/\/+$/, '');
+};
+
 /**
  * Mendapatkan konfigurasi Supabase saat ini (dari localStorage atau env vars)
  */
 export const getSupabaseConfig = (): SupabaseConfig => {
-  const envUrl = (import.meta as any).env?.VITE_SUPABASE_URL || 'https://wexcmfzhtfhdfpqlsyac.supabase.co';
-  const envKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'sb_publishable_qciJ8BN3834AY3zxClV3ow_SlUw9ptb';
+  const envUrl = normalizeSupabaseUrl((import.meta as any).env?.VITE_SUPABASE_URL || 'https://wexcmfzhtfhdfpqlsyac.supabase.co');
+  const envKey = ((import.meta as any).env?.VITE_SUPABASE_ANON_KEY || 'sb_publishable_qciJ8BN3834AY3zxClV3ow_SlUw9ptb').trim();
 
   try {
     const saved = localStorage.getItem(STORAGE_KEY_SUPABASE);
     if (saved) {
       const parsed = JSON.parse(saved);
+      const savedUrl = normalizeSupabaseUrl(parsed.url || '');
+      const savedKey = (parsed.anonKey || '').trim();
       return {
-        url: parsed.url || envUrl,
-        anonKey: parsed.anonKey || envKey,
+        url: savedUrl || envUrl,
+        anonKey: savedKey || envKey,
       };
     }
   } catch {
@@ -61,7 +71,11 @@ export const getSupabaseConfig = (): SupabaseConfig => {
  * Menyimpan konfigurasi Supabase ke penyimpanan lokal
  */
 export const saveSupabaseConfig = (config: SupabaseConfig): void => {
-  localStorage.setItem(STORAGE_KEY_SUPABASE, JSON.stringify(config));
+  const normalized: SupabaseConfig = {
+    url: normalizeSupabaseUrl(config.url),
+    anonKey: (config.anonKey || '').trim(),
+  };
+  localStorage.setItem(STORAGE_KEY_SUPABASE, JSON.stringify(normalized));
   cachedClient = null;
 };
 
@@ -104,8 +118,8 @@ export const testSupabaseConnection = async (
   testUrl?: string,
   testKey?: string
 ): Promise<{ success: boolean; message: string; tableCount?: number }> => {
-  const url = testUrl || getSupabaseConfig().url;
-  const anonKey = testKey || getSupabaseConfig().anonKey;
+  const url = normalizeSupabaseUrl(testUrl || getSupabaseConfig().url);
+  const anonKey = (testKey || getSupabaseConfig().anonKey).trim();
 
   if (!url || !anonKey) {
     return {
@@ -152,8 +166,8 @@ export const testSupabaseConnection = async (
 export const mapSchoolProfileFromDb = (row: any): SchoolProfile => ({
   id: row.id || 'sch-1',
   schoolName: row.school_name || 'SD IAS Al-Jannah (Islamic, Nature & Science School)',
-  npsn: row.npsn || '20108390',
-  nss: row.nss || '-',
+  npsn: row.npsn ?? '-',
+  nss: row.nss ?? '-',
   foundationName: row.foundation_name || 'Yayasan Al-Jannah Pondok Ranggon',
   address: row.address || 'Jl. Jambore No. 4, Harjamukti, Pondok Ranggon',
   village: row.village || 'Harjamukti',
@@ -166,7 +180,7 @@ export const mapSchoolProfileFromDb = (row: any): SchoolProfile => ({
   website: row.website || 'https://sekolah-aljannah.sch.id',
   logoUrl: row.logo_url || '/logo-aljannah-emblem.png',
   headmasterName: row.headmaster_name || 'Siti Sriyati, S.Ag',
-  headmasterNip: row.headmaster_nip || '198105152005011004',
+  headmasterNip: row.headmaster_nip ?? '',
   reportPlace: row.report_place || 'Depok',
   reportDateSem1: row.report_date_sem1 || '2026-12-19',
   reportDateSem2: row.report_date_sem2 || '2027-06-25',
@@ -176,8 +190,8 @@ export const mapSchoolProfileFromDb = (row: any): SchoolProfile => ({
 export const mapSchoolProfileToDb = (sp: SchoolProfile) => ({
   id: sp.id || 'sch-1',
   school_name: sp.schoolName,
-  npsn: sp.npsn,
-  nss: sp.nss,
+  npsn: sp.npsn || '-',
+  nss: sp.nss || '-',
   foundation_name: sp.foundationName,
   address: sp.address,
   village: sp.village,
@@ -190,11 +204,12 @@ export const mapSchoolProfileToDb = (sp: SchoolProfile) => ({
   website: sp.website,
   logo_url: sp.logoUrl,
   headmaster_name: sp.headmasterName,
-  headmaster_nip: sp.headmasterNip,
+  headmaster_nip: sp.headmasterNip || '',
   report_place: sp.reportPlace,
-  report_date_sem1: sp.reportDateSem1,
-  report_date_sem2: sp.reportDateSem2,
-  report_date: sp.reportDate || sp.reportDateSem1,
+  report_date_sem1: sp.reportDateSem1 || null,
+  report_date_sem2: sp.reportDateSem2 || null,
+  report_date: sp.reportDate || sp.reportDateSem1 || null,
+  updated_at: new Date().toISOString(),
 });
 
 export const mapAcademicYearFromDb = (row: any): AcademicYear => ({
@@ -215,13 +230,45 @@ export const mapSemesterFromDb = (row: any): Semester => ({
   isFinalized: false,
 });
 
+const mapRoleTitleToPosition = (roleTitle?: string): string => {
+  switch ((roleTitle || '').toLowerCase()) {
+    case 'wali_kelas':
+    case 'wali kelas':
+      return 'Wali Kelas';
+    case 'guru_bidang':
+    case 'guru bidang':
+      return 'Guru Bidang';
+    case 'guru_pendamping':
+    case 'guru pendamping':
+      return 'Guru Pendamping';
+    default:
+      return 'Guru Kelas';
+  }
+};
+
+const mapPositionToRoleTitle = (position?: string): string => {
+  switch ((position || '').toLowerCase()) {
+    case 'wali kelas':
+    case 'wali_kelas':
+      return 'wali_kelas';
+    case 'guru bidang':
+    case 'guru_bidang':
+      return 'guru_bidang';
+    case 'guru pendamping':
+    case 'guru_pendamping':
+      return 'guru_pendamping';
+    default:
+      return 'guru_kelas';
+  }
+};
+
 export const mapTeacherFromDb = (row: any): Teacher => ({
   id: row.id,
   nip: row.nip || '',
   fullName: row.full_name,
   gender: row.gender || 'L',
   phone: row.phone || '',
-  position: row.role_title === 'wali_kelas' ? 'Wali Kelas' : row.role_title === 'guru_bidang' ? 'Guru Bidang' : 'Guru Kelas',
+  position: mapRoleTitleToPosition(row.role_title),
   isActive: true,
   assignedHomeroomClassId: row.assigned_class_id || undefined,
   assignedSubjectIds: Array.isArray(row.subjects_taught) ? row.subjects_taught : [],
@@ -232,7 +279,7 @@ export const mapTeacherToDb = (t: Teacher) => ({
   nip: t.nip || null,
   full_name: t.fullName,
   gender: t.gender,
-  role_title: t.position === 'Wali Kelas' ? 'wali_kelas' : t.position === 'Guru Bidang' ? 'guru_bidang' : 'guru_kelas',
+  role_title: mapPositionToRoleTitle(t.position),
   phone: t.phone || null,
   is_homeroom_teacher: t.position === 'Wali Kelas' || Boolean(t.assignedHomeroomClassId),
   assigned_class_id: t.assignedHomeroomClassId || null,
@@ -305,31 +352,35 @@ export const mapStudentFromDb = (row: any): Student => ({
   status: row.status || 'aktif',
 });
 
-export const mapStudentToDb = (s: Student) => ({
-  id: s.id,
-  nis: s.nis,
-  nisn: s.nisn,
-  full_name: s.fullName,
-  gender: s.gender,
-  birth_place: s.birthPlace || null,
-  birth_date: s.birthDate || null,
-  religion: s.religion || 'Islam',
-  current_class_id: s.currentClassId || null,
-  current_grade: 5,
-  address: s.address || null,
-  parent_father: s.parentFather || null,
-  father_job: s.fatherJob || null,
-  father_education: s.fatherEducation || null,
-  parent_mother: s.parentMother || null,
-  mother_job: s.motherJob || null,
-  mother_education: s.motherEducation || null,
-  guardian_name: s.guardianName || null,
-  guardian_job: s.guardianJob || null,
-  guardian_relation: s.guardianRelation || null,
-  parent_phone: s.parentPhone || null,
-  entry_year: s.admissionYear || '2022',
-  status: s.status || 'aktif',
-});
+export const mapStudentToDb = (s: Student, classes?: ClassGroup[]) => {
+  const matchedClass = classes?.find(c => c.id === s.currentClassId);
+  return {
+    id: s.id,
+    nis: s.nis,
+    nisn: s.nisn,
+    full_name: s.fullName,
+    gender: s.gender,
+    birth_place: s.birthPlace || null,
+    birth_date: s.birthDate || null,
+    religion: s.religion || 'Islam',
+    current_class_id: s.currentClassId || null,
+    current_grade: matchedClass?.gradeLevel || 5,
+    address: s.address || null,
+    parent_father: s.parentFather || null,
+    father_job: s.fatherJob || null,
+    father_education: s.fatherEducation || null,
+    parent_mother: s.parentMother || null,
+    mother_job: s.motherJob || null,
+    mother_education: s.motherEducation || null,
+    guardian_name: s.guardianName || null,
+    guardian_job: s.guardianJob || null,
+    guardian_relation: s.guardianRelation || null,
+    parent_phone: s.parentPhone || null,
+    entry_year: s.admissionYear || '2022',
+    status: s.status || 'aktif',
+    updated_at: new Date().toISOString(),
+  };
+};
 
 export const mapAssessmentFromDb = (row: any): StudentAssessment => {
   const meta = row.formative_scores && typeof row.formative_scores === 'object' && !Array.isArray(row.formative_scores)
@@ -379,6 +430,7 @@ export const mapAssessmentToDb = (a: StudentAssessment) => ({
     status: a.status,
   },
   summative_scores: [],
+  updated_at: new Date().toISOString(),
 });
 
 export const mapExtracurricularFromDb = (row: any): Extracurricular => ({
@@ -470,7 +522,7 @@ export const mapAchievementFromDb = (row: any): StudentAchievement => ({
   studentId: row.student_id,
   achievementName: row.achievement_name,
   category: 'akademik',
-  level: row.level || 'kota',
+  level: row.level === 'kota' ? 'kabupaten_kota' : (row.level || 'kabupaten_kota'),
   organizer: row.organizer || '',
   eventDate: row.event_date || '2026-01-01',
   rankOrAward: row.rank_or_award || 'Juara 1',
@@ -483,11 +535,55 @@ export const mapAchievementToDb = (ach: StudentAchievement) => ({
   id: ach.id,
   student_id: ach.studentId,
   achievement_name: ach.achievementName,
-  level: ach.level || 'kota',
+  level: ach.level === 'kabupaten_kota' ? 'kota' : (ach.level || 'kota'),
   rank_or_award: ach.rankOrAward,
   event_date: ach.eventDate || new Date().toISOString().substring(0, 10),
   organizer: ach.organizer || 'Sekolah',
   certificate_url: ach.certificateUrl || null,
+});
+
+export const mapCocurricularActivityFromDb = (row: any): CocurricularActivity => ({
+  id: row.id,
+  name: row.title,
+  theme: row.theme,
+  objectives: row.description || '',
+  activityForm: row.description || '',
+  relatedSubjects: Array.isArray(row.target_dimensions) ? row.target_dimensions : [],
+  targetPhase: 'C',
+  coordinatorTeacherId: '',
+  status: 'aktif',
+});
+
+export const mapCocurricularActivityToDb = (a: CocurricularActivity) => ({
+  id: a.id,
+  title: a.name,
+  theme: a.theme,
+  description: a.objectives || a.activityForm || '',
+  target_dimensions: a.relatedSubjects || [],
+});
+
+export const mapCocurricularRubricFromDb = (row: any): CocurricularRubric => ({
+  id: row.id,
+  activityId: row.activity_id,
+  dimension: row.dimension,
+  theme: row.element || '',
+  objectives: row.sub_element || '',
+  objective: row.sub_element || '',
+  activityForm: row.activity_form || '',
+  relatedSubjects: row.target_grade_level
+    ? String(row.target_grade_level).split(',').map(s => s.trim()).filter(Boolean)
+    : [],
+  indicator: row.sub_element || '',
+});
+
+export const mapCocurricularRubricToDb = (r: CocurricularRubric) => ({
+  id: r.id,
+  activity_id: r.activityId,
+  dimension: r.dimension,
+  element: r.theme || r.dimension,
+  sub_element: r.objectives || r.objective || r.indicator || '-',
+  target_grade_level: Array.isArray(r.relatedSubjects) ? r.relatedSubjects.join(', ') : '',
+  activity_form: r.activityForm || '-',
 });
 
 export const mapCocurricularAssessmentFromDb = (row: any): CocurricularAssessment => ({
@@ -496,18 +592,33 @@ export const mapCocurricularAssessmentFromDb = (row: any): CocurricularAssessmen
   rubricId: row.rubric_id,
   activityId: '',
   semesterId: row.semester_id,
-  grade: row.grade,
-  achievementLevel: row.grade,
+  grade: row.grade === 'BSH' ? 'B' : row.grade === 'MB' ? 'C' : row.grade === 'BB' ? 'K' : (row.grade || 'B'),
+  achievementLevel: row.grade === 'BSH' ? 'B' : row.grade === 'MB' ? 'C' : row.grade === 'BB' ? 'K' : (row.grade || 'B'),
   teacherNote: row.teacher_note || '',
 });
 
-export const mapCocurricularAssessmentToDb = (ca: CocurricularAssessment) => ({
-  id: ca.id,
-  student_id: ca.studentId,
-  rubric_id: ca.rubricId,
-  grade: ca.grade || ca.achievementLevel || 'B',
-  teacher_note: ca.teacherNote || null,
-  semester_id: ca.semesterId,
+export const mapCocurricularAssessmentToDb = (ca: CocurricularAssessment) => {
+  const raw = ca.grade || ca.achievementLevel || 'B';
+  const dbGrade = raw === 'B' ? 'BSH' : raw === 'C' ? 'MB' : raw === 'K' ? 'BB' : raw;
+  return {
+    id: ca.id,
+    student_id: ca.studentId,
+    rubric_id: ca.rubricId,
+    grade: dbGrade,
+    teacher_note: ca.teacherNote || null,
+    semester_id: ca.semesterId,
+  };
+};
+
+export const mapAuditLogFromDb = (row: any): AuditLog => ({
+  id: row.id,
+  userId: row.user_id || '',
+  userName: row.user_name || 'System',
+  action: row.action,
+  entityType: row.entity,
+  entityId: row.entity_id || '',
+  details: row.details || '',
+  timestamp: row.timestamp ? String(row.timestamp).replace('T', ' ').substring(0, 19) : '',
 });
 
 // ==============================================================================
@@ -515,6 +626,7 @@ export const mapCocurricularAssessmentToDb = (ca: CocurricularAssessment) => ({
 // ==============================================================================
 
 export interface LoadedSupabaseData {
+  hasSuccess: boolean;
   schoolProfile?: SchoolProfile;
   academicYears?: AcademicYear[];
   semesters?: Semester[];
@@ -528,34 +640,54 @@ export interface LoadedSupabaseData {
   attendances?: StudentAttendance[];
   homeroomNotes?: HomeroomNote[];
   achievements?: StudentAchievement[];
+  cocurricularActivities?: CocurricularActivity[];
+  cocurricularRubrics?: CocurricularRubric[];
   cocurricularAssessments?: CocurricularAssessment[];
+  auditLogs?: AuditLog[];
   permissionErrors: string[];
 }
 
 export const fetchAllDataFromSupabase = async (): Promise<LoadedSupabaseData> => {
   const client = getSupabaseClient();
-  const result: LoadedSupabaseData = { permissionErrors: [] };
+  const result: LoadedSupabaseData = { hasSuccess: false, permissionErrors: [] };
 
   if (!client) return result;
 
-  const fetchTable = async (tableName: string, mapper: (row: any) => any) => {
+  const fetchTable = async <T>(
+    tableName: string,
+    mapper: (row: any) => T,
+    orderCol = 'created_at'
+  ): Promise<T[] | null> => {
     try {
-      const { data, error } = await client.from(tableName).select('*');
+      const { data, error } = await client
+        .from(tableName)
+        .select('*')
+        .order(orderCol, { ascending: true })
+        .range(0, 4999);
       if (error) {
         if (error.code === '42501') {
           result.permissionErrors.push(tableName);
+        } else {
+          console.warn(`[Supabase Fetch] ${tableName}:`, error.message);
         }
         return null;
       }
+      result.hasSuccess = true;
       return (data || []).map(mapper);
-    } catch {
+    } catch (err) {
+      console.warn(`[Supabase Fetch Exception] ${tableName}:`, err);
       return null;
     }
   };
 
   const fetchSchoolProfile = async (): Promise<SchoolProfile | null> => {
     try {
-      const { data } = await client.from('school_profiles').select('*').limit(1);
+      const { data, error } = await client.from('school_profiles').select('*').limit(1);
+      if (error) {
+        if (error.code === '42501') result.permissionErrors.push('school_profiles');
+        return null;
+      }
+      result.hasSuccess = true;
       return data?.[0] ? mapSchoolProfileFromDb(data[0]) : null;
     } catch {
       return null;
@@ -576,7 +708,10 @@ export const fetchAllDataFromSupabase = async (): Promise<LoadedSupabaseData> =>
     attData,
     hnData,
     achData,
+    caActData,
+    caRubData,
     caData,
+    auditData,
   ] = await Promise.all([
     fetchSchoolProfile(),
     fetchTable('academic_years', mapAcademicYearFromDb),
@@ -591,23 +726,31 @@ export const fetchAllDataFromSupabase = async (): Promise<LoadedSupabaseData> =>
     fetchTable('attendances', mapAttendanceFromDb),
     fetchTable('homeroom_notes', mapHomeroomNoteFromDb),
     fetchTable('student_achievements', mapAchievementFromDb),
+    fetchTable('cocurricular_activities', mapCocurricularActivityFromDb),
+    fetchTable('cocurricular_rubrics', mapCocurricularRubricFromDb),
     fetchTable('cocurricular_assessments', mapCocurricularAssessmentFromDb),
+    fetchTable('audit_logs', mapAuditLogFromDb, 'timestamp'),
   ]);
 
   if (schoolData) result.schoolProfile = schoolData;
-  if (ayData && ayData.length > 0) result.academicYears = ayData;
-  if (semData && semData.length > 0) result.semesters = semData;
-  if (tchData && tchData.length > 0) result.teachers = tchData;
-  if (clsData && clsData.length > 0) result.classes = clsData;
-  if (subData && subData.length > 0) result.subjects = subData;
-  if (stdData && stdData.length > 0) result.students = stdData;
-  if (eksData && eksData.length > 0) result.extracurriculars = eksData;
-  if (memData) result.extracurricularMembers = memData;
-  if (asmData) result.assessments = asmData;
-  if (attData) result.attendances = attData;
-  if (hnData) result.homeroomNotes = hnData;
-  if (achData) result.achievements = achData;
-  if (caData) result.cocurricularAssessments = caData;
+  if (ayData !== null && ayData.length > 0) result.academicYears = ayData;
+  if (semData !== null && semData.length > 0) result.semesters = semData;
+  // IMPORTANT: Always assign fetched arrays even when empty ([]) so deletions/empty tables in Supabase
+  // overwrite stale localStorage or mock seed data!
+  if (tchData !== null) result.teachers = tchData;
+  if (clsData !== null) result.classes = clsData;
+  if (subData !== null) result.subjects = subData;
+  if (stdData !== null) result.students = stdData;
+  if (eksData !== null) result.extracurriculars = eksData;
+  if (memData !== null) result.extracurricularMembers = memData;
+  if (asmData !== null) result.assessments = asmData;
+  if (attData !== null) result.attendances = attData;
+  if (hnData !== null) result.homeroomNotes = hnData;
+  if (achData !== null) result.achievements = achData;
+  if (caActData !== null && caActData.length > 0) result.cocurricularActivities = caActData;
+  if (caRubData !== null && caRubData.length > 0) result.cocurricularRubrics = caRubData;
+  if (caData !== null) result.cocurricularAssessments = caData;
+  if (auditData !== null && auditData.length > 0) result.auditLogs = auditData.slice().reverse();
 
   return result;
 };
@@ -623,7 +766,10 @@ export type RemoteChangeCallback = (
   oldRow: any
 ) => void;
 
-export const subscribeToAllChanges = (onRemoteChange: RemoteChangeCallback): (() => void) => {
+export const subscribeToAllChanges = (
+  onRemoteChange: RemoteChangeCallback,
+  onStatusChange?: (status: string) => void
+): (() => void) => {
   const client = getSupabaseClient();
   if (!client) return () => {};
 
@@ -643,9 +789,7 @@ export const subscribeToAllChanges = (onRemoteChange: RemoteChangeCallback): (()
       }
     )
     .subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        // Channel active
-      }
+      onStatusChange?.(status);
     });
 
   return () => {
@@ -792,7 +936,7 @@ export const syncAllDataToSupabase = async (
     // 7. Students
     onProgress?.('Menyimpan Siswa...');
     if (appData.students?.length) {
-      const rows = appData.students.map(mapStudentToDb);
+      const rows = appData.students.map(s => mapStudentToDb(s, appData.classes));
       const { error } = await client.from('students').upsert(rows);
       if (error) details.push(`Siswa: ${error.message}`);
       else details.push(`${rows.length} Siswa tersinkron.`);

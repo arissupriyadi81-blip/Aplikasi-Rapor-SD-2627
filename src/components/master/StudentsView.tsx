@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext.tsx';
 import { Student } from '../../types/index.ts';
 import {
@@ -53,9 +53,15 @@ export const StudentsView: React.FC = () => {
     address: '',
     admissionYear: '2022',
     status: 'aktif',
-    currentClassId: classes[4]?.id || classes[0]?.id || '',
+    currentClassId: classes[0]?.id || '',
     rollNumber: 1,
   });
+
+  useEffect(() => {
+    if (selectedClassId !== 'all' && !classes.some(c => c.id === selectedClassId)) {
+      setSelectedClassId('all');
+    }
+  }, [classes, selectedClassId]);
 
   const canManage = currentUser.role === 'admin' || currentUser.role === 'wali_kelas';
 
@@ -92,7 +98,7 @@ export const StudentsView: React.FC = () => {
       address: '',
       admissionYear: '2022',
       status: 'aktif',
-      currentClassId: selectedClassId !== 'all' ? selectedClassId : (classes[4]?.id || classes[0]?.id),
+      currentClassId: selectedClassId !== 'all' ? selectedClassId : (classes[0]?.id || ''),
       rollNumber: filteredStudents.length + 1,
     });
     setModalOpen(true);

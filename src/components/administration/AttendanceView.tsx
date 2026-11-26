@@ -10,9 +10,15 @@ import { CalendarCheck2, Save, CheckCircle2, AlertTriangle, Sparkles } from 'luc
 
 export const AttendanceView: React.FC = () => {
   const { classes, students, attendances, activeAcademicYear, activeSemester, bulkSaveAttendance } = useApp();
-  const [selectedClassId, setSelectedClassId] = useState<string>(classes[4]?.id || classes[0]?.id || '');
+  const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || '');
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    if (classes.length > 0 && !classes.some(c => c.id === selectedClassId)) {
+      setSelectedClassId(classes[0].id);
+    }
+  }, [classes, selectedClassId]);
 
   const classStudents = students.filter(s => s.currentClassId === selectedClassId && s.status === 'aktif');
 
@@ -40,7 +46,7 @@ export const AttendanceView: React.FC = () => {
       };
     });
     setRows(list);
-  }, [selectedClassId, activeSemester.id]);
+  }, [selectedClassId, activeSemester.id, attendances, students]);
 
   const handleChange = (idx: number, field: 'sakit' | 'izin' | 'alpa' | 'notes', val: any) => {
     const updated = [...rows];

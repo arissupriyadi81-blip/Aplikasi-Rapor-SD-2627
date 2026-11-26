@@ -32,6 +32,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onOpenDbModal }
     activeSemester,
     setActiveSemesterId,
     schoolProfile,
+    supabaseSyncStatus,
   } = useApp();
 
   return (
@@ -108,15 +109,57 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onOpenDbModal }
         {/* Supabase Cloud & Realtime Status Button */}
         <button
           onClick={onOpenDbModal}
-          title="Database Supabase Terhubung - Sinkronisasi Realtime Aktif Antar-Browser"
-          className="flex items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60 shadow-sm"
+          title={
+            supabaseSyncStatus.lastError
+              ? `Kendala sinkronisasi Supabase: ${supabaseSyncStatus.lastError}`
+              : supabaseSyncStatus.isRealtime
+              ? `Database Supabase Terhubung & Realtime Aktif${supabaseSyncStatus.lastSync ? ` (Sinkron terakhir: ${supabaseSyncStatus.lastSync.toLocaleTimeString('id-ID')})` : ''}`
+              : supabaseSyncStatus.isConnected
+              ? 'Database Supabase Terhubung'
+              : 'Menghubungkan / Mode Lokal'
+          }
+          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold shadow-sm transition-colors ${
+            supabaseSyncStatus.lastError
+              ? 'border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-950/60 dark:text-amber-300 dark:hover:bg-amber-900/60'
+              : supabaseSyncStatus.isConnected
+              ? 'border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 dark:hover:bg-emerald-900/60'
+              : 'border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300'
+          }`}
         >
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            {(supabaseSyncStatus.isRealtime || supabaseSyncStatus.isLoading) && (
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                supabaseSyncStatus.isLoading ? 'bg-amber-400' : 'bg-emerald-400'
+              }`}></span>
+            )}
+            <span className={`relative inline-flex rounded-full h-2 w-2 ${
+              supabaseSyncStatus.lastError
+                ? 'bg-amber-500'
+                : supabaseSyncStatus.isLoading
+                ? 'bg-amber-400'
+                : supabaseSyncStatus.isConnected
+                ? 'bg-emerald-500'
+                : 'bg-slate-400'
+            }`}></span>
           </span>
-          <Database className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-          <span className="hidden sm:inline font-bold">Supabase Realtime</span>
+          <Database className={`h-3.5 w-3.5 ${
+            supabaseSyncStatus.lastError
+              ? 'text-amber-600 dark:text-amber-400'
+              : supabaseSyncStatus.isConnected
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-slate-500 dark:text-slate-400'
+          }`} />
+          <span className="hidden sm:inline font-bold">
+            {supabaseSyncStatus.isLoading
+              ? 'Menyinkronkan...'
+              : supabaseSyncStatus.lastError
+              ? 'Sinkronisasi Tertunda'
+              : supabaseSyncStatus.isRealtime
+              ? 'Supabase Realtime'
+              : supabaseSyncStatus.isConnected
+              ? 'Supabase Terhubung'
+              : 'Database Lokal'}
+          </span>
         </button>
 
         {/* Administrator Badge (Mode Admin Bersama) */}

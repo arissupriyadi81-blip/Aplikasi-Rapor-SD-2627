@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext.tsx';
 import { Building2, Save, CheckCircle2, Calendar, MapPin, Phone, Mail, Globe, UserCheck, Image as ImageIcon } from 'lucide-react';
 
@@ -11,6 +11,10 @@ export const SchoolProfileView: React.FC = () => {
   const { schoolProfile, updateSchoolProfile, currentUser } = useApp();
   const [formData, setFormData] = useState({ ...schoolProfile });
   const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    setFormData({ ...schoolProfile });
+  }, [schoolProfile]);
 
   const canEdit = currentUser.role === 'admin';
 
@@ -250,7 +254,7 @@ export const SchoolProfileView: React.FC = () => {
                 />
               </div>
               <div className="flex-1 space-y-1">
-                <p className="text-xs font-bold text-slate-800 dark:text-white">SD IAS Al-Jannah</p>
+                <p className="text-xs font-bold text-slate-800 dark:text-white">{formData.schoolName}</p>
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
                   Logo resmi otomatis disematkan pada sampul rapor, kop lembar dinas, dan identitas aplikasi.
                 </p>

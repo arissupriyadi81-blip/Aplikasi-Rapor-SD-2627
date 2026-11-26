@@ -9,17 +9,25 @@ import { MessageSquareQuote, Save, CheckCircle2, Sparkles, BookOpen } from 'luci
 
 export const HomeroomNotesView: React.FC = () => {
   const { classes, students, homeroomNotes, activeAcademicYear, activeSemester, saveHomeroomNote } = useApp();
-  const [selectedClassId, setSelectedClassId] = useState<string>(classes[4]?.id || classes[0]?.id || '');
+  const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || '');
   const [selectedStudentId, setSelectedStudentId] = useState<string>('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+
+  useEffect(() => {
+    if (classes.length > 0 && !classes.some(c => c.id === selectedClassId)) {
+      setSelectedClassId(classes[0].id);
+    }
+  }, [classes, selectedClassId]);
 
   const classStudents = students.filter(s => s.currentClassId === selectedClassId && s.status === 'aktif');
 
   useEffect(() => {
     if (classStudents.length > 0 && (!selectedStudentId || !classStudents.some(s => s.id === selectedStudentId))) {
       setSelectedStudentId(classStudents[0].id);
+    } else if (classStudents.length === 0 && selectedStudentId) {
+      setSelectedStudentId('');
     }
-  }, [selectedClassId, classStudents.length]);
+  }, [selectedClassId, classStudents.length, selectedStudentId]);
 
   const activeStudent = students.find(s => s.id === selectedStudentId);
   const currentNote = homeroomNotes.find(n => n.studentId === selectedStudentId && n.semesterId === activeSemester.id);

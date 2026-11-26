@@ -216,7 +216,7 @@ export const StudentExcelModal: React.FC<StudentExcelModalProps> = ({
 
           // Class matching
           const classNameRaw = getValue('Kelas', 'Rombel', 'Class');
-          let classId = defaultClassId && defaultClassId !== 'all' ? defaultClassId : (classes[4]?.id || classes[0]?.id || '');
+          let classId = defaultClassId && defaultClassId !== 'all' ? defaultClassId : (classes[0]?.id || '');
           if (classNameRaw) {
             const matchedClass = classes.find(c =>
               c.className.toLowerCase().includes(classNameRaw.toLowerCase()) ||

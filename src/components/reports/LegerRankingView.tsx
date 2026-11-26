@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext.tsx';
 import { calculateCohortRanking } from '../../utils/rules.ts';
 import {
@@ -30,9 +30,15 @@ export const LegerRankingView: React.FC = () => {
     currentUser,
   } = useApp();
 
-  const [selectedClassId, setSelectedClassId] = useState<string>(classes[4]?.id || classes[0]?.id || '');
+  const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || '');
   const [showRanking, setShowRanking] = useState<boolean>(true);
   const [sortBy, setSortBy] = useState<'name' | 'rank'>('rank');
+
+  useEffect(() => {
+    if (classes.length > 0 && !classes.some(c => c.id === selectedClassId)) {
+      setSelectedClassId(classes[0].id);
+    }
+  }, [classes, selectedClassId]);
 
   const currentClass = classes.find(c => c.id === selectedClassId);
   const classStudents = students.filter(s => s.currentClassId === selectedClassId && s.status === 'aktif');

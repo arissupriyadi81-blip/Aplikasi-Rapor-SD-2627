@@ -15,7 +15,7 @@ export const AchievementsView: React.FC = () => {
   const [editingAch, setEditingAch] = useState<StudentAchievement | null>(null);
 
   const [formData, setFormData] = useState<Omit<StudentAchievement, 'id'>>({
-    studentId: students[1]?.id || students[0]?.id || '',
+    studentId: students[0]?.id || '',
     achievementName: '',
     category: 'akademik',
     level: 'kabupaten_kota',
@@ -40,7 +40,7 @@ export const AchievementsView: React.FC = () => {
   const handleOpenAdd = () => {
     setEditingAch(null);
     setFormData({
-      studentId: students[1]?.id || students[0]?.id || '',
+      studentId: students[0]?.id || '',
       achievementName: '',
       category: 'akademik',
       level: 'kabupaten_kota',

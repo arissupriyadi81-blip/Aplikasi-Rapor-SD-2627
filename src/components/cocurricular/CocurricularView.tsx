@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext.tsx';
 import { CocurricularRubric, KokurikulerGrade } from '../../types/index.ts';
 import {
@@ -46,9 +46,21 @@ export const CocurricularView: React.FC = () => {
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<'rubrik' | 'asesmen'>('asesmen');
-  const [selectedClassId, setSelectedClassId] = useState<string>(classes[4]?.id || classes[0]?.id || '');
+  const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || '');
   const [selectedRubricId, setSelectedRubricId] = useState<string>(cocurricularRubrics[0]?.id || '');
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (classes.length > 0 && !classes.some(c => c.id === selectedClassId)) {
+      setSelectedClassId(classes[0].id);
+    }
+  }, [classes, selectedClassId]);
+
+  useEffect(() => {
+    if (cocurricularRubrics.length > 0 && !cocurricularRubrics.some(r => r.id === selectedRubricId)) {
+      setSelectedRubricId(cocurricularRubrics[0].id);
+    }
+  }, [cocurricularRubrics, selectedRubricId]);
 
   // Rubric Modal state
   const [rubricModalOpen, setRubricModalOpen] = useState(false);

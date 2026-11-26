@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext.tsx';
 import { formatIndonesianDate, KOKURIKULER_GRADES } from '../../utils/rules.ts';
 import { KokurikulerGrade } from '../../types/index.ts';
@@ -49,7 +49,7 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({ isOpen, onCl
     activeSemester,
   } = useApp();
 
-  const [selectedClassId, setSelectedClassId] = useState<string>(classes[4]?.id || classes[0]?.id || '');
+  const [selectedClassId, setSelectedClassId] = useState<string>(classes[0]?.id || '');
   const [selectedStudentId, setSelectedStudentId] = useState<string>('all');
   const [documentType, setDocumentType] = useState<'all' | 'cover' | 'identitas' | 'dinas' | 'prestasi'>('all');
   const [includeSignatures, setIncludeSignatures] = useState<boolean>(true);
@@ -58,6 +58,19 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({ isOpen, onCl
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<boolean>(false);
   const [pdfProgress, setPdfProgress] = useState<string | null>(null);
   const [downloadMessage, setDownloadMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (classes.length > 0 && !classes.some(c => c.id === selectedClassId)) {
+      setSelectedClassId(classes[0].id);
+      setSelectedStudentId('all');
+    }
+  }, [classes, selectedClassId]);
+
+  useEffect(() => {
+    if (selectedStudentId !== 'all' && !students.some(s => s.id === selectedStudentId && s.currentClassId === selectedClassId)) {
+      setSelectedStudentId('all');
+    }
+  }, [students, selectedClassId, selectedStudentId]);
 
   if (!isOpen) return null;
 
